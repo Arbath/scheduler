@@ -51,6 +51,23 @@ impl<T: Serialize> WebResponse<T> {
     }
 }
 
+impl WebResponse<()> {
+    pub fn ok_empty(uri: &Uri, message: &str) -> (StatusCode, Json<Self>) {
+        let status = StatusCode::OK;
+        (
+            status,
+            Json(Self { // Self di sini merujuk pada WebResponse<()>
+                success: true,
+                status: status.as_u16(),
+                message: message.to_string(),
+                path: uri.path().to_string(),
+                timestamp: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+                data: None, 
+            }),
+        )
+    }
+}
+
 // Custom ERROR
 pub enum AppError {
     AuthError(String),
