@@ -1,0 +1,12 @@
+pub mod home;
+// pub mod user;
+pub mod auth;
+use axum::Router;
+
+use crate::state::AppState;
+
+pub fn create_routes() -> Router<AppState> {
+    Router::new()
+        .merge(home::routes())
+        .merge(auth::routes())
+}
