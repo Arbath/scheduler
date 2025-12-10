@@ -6,8 +6,8 @@ pub mod middleware;
 pub mod config;
 pub mod utils;
 pub mod db;
+pub mod repositories;
 pub mod state;
-pub mod response;
 
 use axum::Router;
 use tower_http::{trace, cors, compression};

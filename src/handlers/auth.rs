@@ -1,24 +1,17 @@
-use axum::{Json, extract::State, http::Uri, response::IntoResponse};
-use crate::response::{WebResponse, AppError};
-use crate::models::user::User;
-use crate::utils::auth::{gen_access_token, gen_refresh_token};
+use axum::{extract::State, http::Uri, response::IntoResponse};
+use crate::utils::response::{WebResponse, AppError};
+use crate::utils::requests::ValidatedJson;
+use crate::models::auth::{LoginReq, RefreshTokenReq};
+use crate::services::auth::AuthService;
 use crate::state::AppState;
-use crate::models::auth::{LoginReq, LoginRes, RefreshToken, RefreshTokenReq};
-use crate::services::auth::authenticate;
 
 pub async fn login_hand(
     State(state): State<AppState>,
     uri: Uri,
-    Json(data): Json<LoginReq>
-    ) -> Result<impl IntoResponse, AppError> {  
-    // Authenticate User
-    let user = authenticate(&state.database, &data.username, &data.password) // Asumsi butuh DB connection
-        .await
-        .map_err(|_| AppError::AuthError("Invalid username or password".to_string()))?;
-    
-    let access_token = gen_access_token(&user, &state).await?;
-    let refresh_token = gen_refresh_token(&user, &state).await?;
-    let response_data = LoginRes { access_token, refresh_token };
+    ValidatedJson(data): ValidatedJson<LoginReq>
+) -> Result<impl IntoResponse, AppError> {  
+    let auth_service = AuthService::new(state);
+    let response_data = auth_service.login(data).await?;
 
     Ok(WebResponse::ok(&uri, "Login success!", response_data))
 }
@@ -26,17 +19,10 @@ pub async fn login_hand(
 pub async fn refresh_hand(
     State(state): State<AppState>,
     uri: Uri,
-    Json(json): Json<RefreshTokenReq>
-    ) -> Result<impl IntoResponse, AppError> {
-
-    let claims= RefreshToken::verify_refresh_token(&state.jwt_secret, &json.refresh_token)?;
-    let user_id = claims.sub.parse::<i32>()
-        .map_err(|_| AppError::AuthError("Invalid ID format".to_string()))?;
-    RefreshToken::token_exists(&state.database, &json.refresh_token).await?;
-    let user = User::user_exists(&state.database, &user_id).await?;
-    let access_token = gen_access_token(&user, &state).await?;
-    let refresh_token = gen_refresh_token(&user, &state).await?;
-    let response_data = LoginRes { access_token, refresh_token };
+    ValidatedJson(data): ValidatedJson<RefreshTokenReq>
+) -> Result<impl IntoResponse, AppError> {
+    let auth_service = AuthService::new(state);
+    let response_data = auth_service.refresh(data.refresh_token).await?;
 
     Ok(WebResponse::ok(&uri, "Refresh success!", response_data))
 }
@@ -44,12 +30,10 @@ pub async fn refresh_hand(
 pub async fn logout_hand(
     State(state): State<AppState>,
     uri: Uri,
-    Json(json): Json<RefreshTokenReq>
-    ) -> Result<impl IntoResponse, AppError> {
-    let claims= RefreshToken::verify_refresh_token(&state.jwt_secret, &json.refresh_token)?;
-    let user_id = claims.sub.parse::<i32>()
-        .map_err(|_| AppError::AuthError("Invalid ID format".to_string()))?;
-    User::user_exists(&state.database, &user_id).await?;
-    RefreshToken::revoke_token(&state.database, &json.refresh_token).await?;
+    ValidatedJson(data):  ValidatedJson<RefreshTokenReq>
+) -> Result<impl IntoResponse, AppError> {
+    let auth_service = AuthService::new(state);
+    auth_service.logout(data.refresh_token).await?;
+
     Ok(WebResponse::ok_empty(&uri, "Logout successful!"))
 }

@@ -1,13 +1,14 @@
-use crate::response::AppError;
+use jsonwebtoken::{encode, EncodingKey, Header, decode, DecodingKey, Validation};
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use chrono::{Duration, Utc};
-use jsonwebtoken::{encode, EncodingKey, Header};
-use crate::models::auth::{Claims, RefreshToken};
-use crate::state::AppState;
+use crate::models::auth::Claims;
 use crate::models::user::User;
+use crate::utils::response::AppError;
+use crate::state::AppState;
 
 pub async fn gen_access_token(user: &User, state: &AppState) -> Result<String, AppError> {
     let now = Utc::now();
-    let access_duration = Duration::days(7);
+    let access_duration = Duration::seconds(state.jwt_config.access_ttl);
     let access_expires_at = now + access_duration;
     let claims = Claims {
         sub: user.id.to_string(),
@@ -19,14 +20,14 @@ pub async fn gen_access_token(user: &User, state: &AppState) -> Result<String, A
 
     let access_token = encode(
         &Header::default(),&claims,
-        &EncodingKey::from_secret(state.jwt_secret.as_bytes())
+        &EncodingKey::from_secret(state.jwt_config.secret.as_bytes())
     ).map_err(|e| AppError::InternalError(e.to_string()))?;
 
     Ok(access_token)
 }
 pub async fn gen_refresh_token(user: &User, state: &AppState) -> Result<String, AppError> {
     let now = Utc::now();
-    let refresh_duration = Duration::days(7);
+    let refresh_duration = Duration::seconds(state.jwt_config.refresh_ttl);
     let refresh_expires_at = now + refresh_duration;
     let claims = Claims {
         sub: user.id.to_string(),
@@ -38,18 +39,30 @@ pub async fn gen_refresh_token(user: &User, state: &AppState) -> Result<String, 
     let refresh_token = encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(state.jwt_secret.as_bytes())
+        &EncodingKey::from_secret(state.jwt_config.secret.as_bytes())
     ).map_err(|e| AppError::InternalError(e.to_string()))?;
 
-    // Save to database
-    RefreshToken::save_refresh_token(
-        &state.database,
-        &refresh_token, 
-        &user.id,
-        refresh_expires_at
-    )
-    .await
-    .map_err(|e| AppError::InternalError(e.to_string()))?;
-
     Ok(refresh_token)
+}
+
+pub fn verify_password(password: &str, password_hash: &str) -> Result<bool, String> {
+    let parsed_hash = PasswordHash::new(password_hash)
+        .map_err(|_| "Invalid hash format in database".to_string())?;
+
+    match Argon2::default().verify_password(password.as_bytes(), &parsed_hash) {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
+    }
+}
+
+pub fn verify_refresh_token(jwt_secret: &str, token: &str) -> Result<Claims, AppError> {
+    let decoding_key = DecodingKey::from_secret(jwt_secret.as_bytes());
+    
+    let token_data = decode::<Claims>(
+        token, 
+        &decoding_key, 
+        &Validation::default(),
+    ).map_err(|_| AppError::AuthError("Invalid or expired refresh token".to_string()))?;
+
+    Ok(token_data.claims)
 }

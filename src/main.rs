@@ -1,6 +1,7 @@
 use axum::serve;
 use dotenvy::dotenv;
-use scheduler::{config::*, create_app, db, state::AppState};
+use scheduler::{config::*, create_app, db, state::AppState, state::JwtConfig};
+use std::sync::Arc;
 
 use tracing::{info, error};
 use tracing_subscriber;
@@ -17,8 +18,13 @@ async fn main() {
     
     let port = config.port; 
     let pool = db::postgres::create_pool(config.db_url, config.migrate).await;
+    let jwt_config = JwtConfig {
+        secret: config.jwt_secret,
+        access_ttl: config.access_ttl as i64,
+        refresh_ttl: config.refresh_ttl as i64,
+    };
     let state = AppState {
-        jwt_secret: config.jwt_secret,
+        jwt_config: Arc::new(jwt_config),
         database: pool,
     };
     
