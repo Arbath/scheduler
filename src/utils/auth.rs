@@ -1,4 +1,4 @@
-use jsonwebtoken::{encode, EncodingKey, Header, decode, DecodingKey, Validation};
+use jsonwebtoken::{encode, EncodingKey, Header, decode, DecodingKey, Validation, Algorithm};
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use chrono::{Duration, Utc};
 use crate::models::auth::Claims;
@@ -53,6 +53,20 @@ pub fn verify_password(password: &str, password_hash: &str) -> Result<bool, Stri
         Ok(_) => Ok(true),
         Err(_) => Ok(false),
     }
+}
+
+pub fn verify_access_token(jwt_secret: &str, token: &str) -> Result<Claims, AppError> {
+    let decoding_key = DecodingKey::from_secret(jwt_secret.as_bytes());
+    let validation = Validation::new(Algorithm::HS256);
+    let token_data = decode::<Claims>(
+        token, 
+        &decoding_key, 
+        &validation,
+    ).map_err(|_err| {
+        AppError::AuthError("Invalid or expired access token".to_string())
+    })?;
+
+    Ok(token_data.claims)
 }
 
 pub fn verify_refresh_token(jwt_secret: &str, token: &str) -> Result<Claims, AppError> {
