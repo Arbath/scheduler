@@ -1,7 +1,11 @@
-use axum::{Router, routing::post};
-// crate::handlers::user;
+use axum::{Router, routing::*};
 
-pub fn routes() -> Router {
+use crate::handlers::user::*;
+use crate::state::AppState;
+
+
+pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/", post(user::me))
+        .route("/user/me", get(get_profile))
+        .route("/user/me", patch(update_profile))
 }

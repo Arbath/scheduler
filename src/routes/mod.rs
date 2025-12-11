@@ -1,5 +1,5 @@
 pub mod home;
-// pub mod user;
+pub mod user;
 pub mod auth;
 use axum::Router;
 
@@ -9,4 +9,5 @@ pub fn create_routes() -> Router<AppState> {
     Router::new()
         .merge(home::routes())
         .merge(auth::routes())
+        .merge(user::routes())
 }

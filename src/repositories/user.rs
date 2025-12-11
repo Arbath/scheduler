@@ -37,4 +37,22 @@ impl UserRepository {
             .fetch_optional(&self.pool)
             .await
     }
+
+    pub async fn update(&self, user: User) -> Result<User, sqlx::Error> {
+        sqlx::query_as!(
+            User,
+            r#"
+            UPDATE users 
+            SET username = $1, email = $2, is_superuser = $3
+            WHERE id = $4
+            RETURNING *
+            "#,
+            user.username,
+            user.email,
+            user.is_superuser,
+            user.id
+        )
+        .fetch_one(&self.pool)
+        .await
+    }
 }
