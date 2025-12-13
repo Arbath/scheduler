@@ -38,9 +38,16 @@ impl From<User> for UserProfile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct UpdateUserReq {
+pub struct UpdateProfileReq {
     pub username: Option<String>,
     #[serde(skip_serializing)]
+    pub password: Option<String>,
+    pub email: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserReq {
+    pub username: Option<String>,
     pub password: Option<String>,
     pub email: Option<String>,
     pub is_superuser: Option<bool>,

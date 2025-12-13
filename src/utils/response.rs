@@ -74,8 +74,47 @@ pub enum AppError {
     InternalError(String),
     NotFound(String),
     BadRequest(String),
+    Forbidden(String),
 }
 
+impl AppError {
+    pub fn with_path(self, uri: &Uri) -> ApiError {
+        ApiError {
+            error: self,
+            path: uri.path().to_string(),
+        }
+    }
+}
+pub struct ApiError {
+    pub error: AppError,
+    pub path: String,
+}
+
+// ApiError .map_err(|e| e.with_path(&uri))
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        let (status, message) = match self.error {
+            AppError::AuthError(msg) => (StatusCode::UNAUTHORIZED, msg),
+            AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
+        };
+
+        let body = Json(WebResponse {
+            success: false,
+            status: status.as_u16(),
+            message,
+            path: self.path,
+            timestamp: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            data: None::<()>,
+        });
+
+        (status, body).into_response()
+    }
+}
+
+// Fallback: AppError 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
@@ -83,6 +122,7 @@ impl IntoResponse for AppError {
             AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
         };
 
         let body = Json(WebResponse {

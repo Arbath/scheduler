@@ -38,7 +38,7 @@ impl UserRepository {
             .await
     }
 
-    pub async fn update(&self, user: User) -> Result<User, sqlx::Error> {
+    pub async fn update_profile(&self, user: User) -> Result<User, sqlx::Error> {
         sqlx::query_as!(
             User,
             r#"
@@ -51,6 +51,68 @@ impl UserRepository {
             user.email,
             user.is_superuser,
             user.id
+        )
+        .fetch_one(&self.pool)
+        .await
+    }
+
+    pub async fn get_all(&self) -> Result<Vec<User>, sqlx::Error> {
+        sqlx::query_as!(
+            User,
+            r#"
+            SELECT * FROM users 
+            ORDER BY id ASC
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await
+    }
+
+    pub async fn create(&self, data: User) -> Result<User, sqlx::Error> {
+        sqlx::query_as!(
+            User,
+            r#"
+            INSERT INTO users (username, password, email, is_superuser)
+            VALUES ($1, $2, $3, $4)
+            RETURNING *
+            "#,
+            data.username,
+            data.password,
+            data.email,
+            data.is_superuser
+        )
+        .fetch_one(&self.pool)
+        .await
+    }
+
+    pub async fn update(&self, data: User) -> Result<User, sqlx::Error> {
+        sqlx::query_as!(
+            User,
+            r#"
+            UPDATE users 
+            SET username = $1, password = $2, email = $3, is_superuser = $4
+            WHERE id = $5
+            RETURNING *
+            "#,
+            data.username,
+            data.password,
+            data.email,
+            data.is_superuser,
+            data.id
+        )
+        .fetch_one(&self.pool)
+        .await
+    }
+
+    pub async fn delete(&self, user: &i32) -> Result<User, sqlx::Error> {
+        sqlx::query_as!(
+            User,
+            r#"
+                DELETE FROM users 
+                WHERE id = $1
+                RETURNING *
+            "#,
+            user
         )
         .fetch_one(&self.pool)
         .await

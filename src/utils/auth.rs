@@ -1,5 +1,4 @@
 use jsonwebtoken::{encode, EncodingKey, Header, decode, DecodingKey, Validation, Algorithm};
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use chrono::{Duration, Utc};
 use crate::models::auth::Claims;
 use crate::models::user::User;
@@ -43,16 +42,6 @@ pub async fn gen_refresh_token(user: &User, state: &AppState) -> Result<String, 
     ).map_err(|e| AppError::InternalError(e.to_string()))?;
 
     Ok(refresh_token)
-}
-
-pub fn verify_password(password: &str, password_hash: &str) -> Result<bool, String> {
-    let parsed_hash = PasswordHash::new(password_hash)
-        .map_err(|_| "Invalid hash format in database".to_string())?;
-
-    match Argon2::default().verify_password(password.as_bytes(), &parsed_hash) {
-        Ok(_) => Ok(true),
-        Err(_) => Ok(false),
-    }
 }
 
 pub fn verify_access_token(jwt_secret: &str, token: &str) -> Result<Claims, AppError> {

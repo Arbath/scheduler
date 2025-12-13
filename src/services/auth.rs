@@ -69,9 +69,15 @@ impl AuthService {
             None => return Err(AppError::AuthError("Invalid identifier or password".to_string())),
         };
 
-        let is_valid = verify_password(password, &user.password)
-            .map_err(|e| AppError::InternalError(format!("Hash verify error: {}", e)))?;
+        let plain_password = password.to_string();
+        let hash_from_db = user.password.clone();
 
+        let is_valid = tokio::task::spawn_blocking(move || {
+            crate::utils::hash::verify(&plain_password, &hash_from_db)
+        })
+        .await
+        .map_err(|e| AppError::InternalError(format!("Hash verify failed: {}", e)))??;
+ 
         if !is_valid {
             return Err(AppError::AuthError("Invalid identifier or password".to_string()));
         }
