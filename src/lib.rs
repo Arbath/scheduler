@@ -7,6 +7,7 @@ pub mod config;
 pub mod utils;
 pub mod db;
 pub mod repositories;
+pub mod jobs;
 pub mod state;
 
 use axum::Router;

@@ -1,8 +1,9 @@
 pub mod home;
 pub mod user;
 pub mod auth;
-use axum::Router;
+pub mod scheduler;
 
+use axum::Router;
 use crate::state::AppState;
 
 pub fn create_routes() -> Router<AppState> {
@@ -10,4 +11,5 @@ pub fn create_routes() -> Router<AppState> {
         .merge(home::routes())
         .merge(auth::routes())
         .merge(user::routes())
+        .merge(scheduler::routes())
 }
