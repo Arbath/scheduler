@@ -5,11 +5,15 @@ use tracing::Level;
 pub struct Config {
     pub port: u16,
     pub jwt_secret: String,
-    pub access_ttl:i32,
-    pub refresh_ttl:i32,
+    pub access_ttl:u32,
+    pub refresh_ttl:u32,
     pub db_url: String,
     pub migrate: bool,
     pub log_level: Level,
+    pub min_job_interval: u64,
+    pub root_username: String,
+    pub root_email: String,
+    pub root_password: String,
 }
 
 impl Config {
@@ -20,11 +24,15 @@ impl Config {
             .expect("Invalid APP_PORT");
 
         let jwt_secret = env::var("JWT_SECRET").expect("JWT_SECRET required");
-        let access_ttl = env::var("ACCESS_TTL_IN_MINUTES").ok().and_then(|v| v.parse::<i32>().ok()).unwrap_or(15) * 60;
-        let refresh_ttl = env::var("REFRESH_TTL_IN_DAYS").ok().and_then(|v| v.parse::<i32>().ok()).unwrap_or(7) * 24 * 60 * 60;
+        let access_ttl = env::var("ACCESS_TTL_IN_MINUTES").ok().and_then(|v| v.parse::<u32>().map(|v| v.max(1)).ok()).unwrap_or(15) * 60;
+        let refresh_ttl = env::var("REFRESH_TTL_IN_DAYS").ok().and_then(|v| v.parse::<u32>().map(|v| v.max(1)).ok()).unwrap_or(7) * 24 * 60 * 60;
         let db_url = env::var("DATABASE_URL").expect("DATABASE_URL required");
         let migrate = env::var("MIGRATIONS").unwrap_or("false".to_string()).to_lowercase().parse::<bool>().unwrap_or(false);
         let log_level_str = env::var("LOG_LEVEL").unwrap_or_else(|_| "INFO".to_string()).to_uppercase();
+        let min_job_interval = env::var("MIN_JOB_INTERVAL").ok().and_then(|v| v.parse::<u64>().ok()).map(|v| v.max(1)).unwrap_or(10);
+        let root_username = env::var("ROOT_USERNAME").expect("ROOT_USERNAME required");
+        let root_email = env::var("ROOT_EMAIL").expect("ROOT_EMAIL required");
+        let root_password = env::var("ROOT_PASSWORD").expect("ROOT_PASSWORD required");
         
         let log_level = match log_level_str.as_str() {
             "TRACE" => Level::TRACE,
@@ -42,6 +50,10 @@ impl Config {
             db_url,
             migrate,
             log_level,
+            min_job_interval,
+            root_username,
+            root_email,
+            root_password,
         }
     }
 }

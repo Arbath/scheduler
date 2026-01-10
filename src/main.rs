@@ -4,7 +4,7 @@ use scheduler::{
     config::*,
     create_app,
     state::{AppState, JwtConfig},
-    db::{postgres, postgres::migrate_app},
+    db::{postgres, postgres::{migrate_app, create_root_user}},
     jobs::{email_jobs::EmailJob, workers::setup_background_workers}
 };
 use std::sync::Arc;
@@ -27,6 +27,7 @@ async fn main() {
     let pool = postgres::create_pool(config.db_url).await;
     if config.migrate {
         migrate_app(&pool).await;
+        let _ = create_root_user(&pool, config.root_username, config.root_email, config.root_password).await;
     }
 
     let jwt_config = JwtConfig {
@@ -35,7 +36,7 @@ async fn main() {
         refresh_ttl: config.refresh_ttl as i64,
     };
     let apalis_config = apalis_sql::Config::default()
-        .set_poll_interval(std::time::Duration::from_secs(5));
+        .set_poll_interval(std::time::Duration::from_secs(config.min_job_interval));
 
     let email_storage =
         PostgresStorage::<EmailJob>::new_with_config(pool.clone(), apalis_config);
