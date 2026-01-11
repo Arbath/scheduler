@@ -3,7 +3,7 @@ use password_hash::{SaltString, rand_core::OsRng};
 
 #[test]
 fn generate_hash() {
-    let password = "secret";
+    let password = "admin123";
 
     let salt = SaltString::generate(&mut OsRng);
     let argon = Argon2::default();
