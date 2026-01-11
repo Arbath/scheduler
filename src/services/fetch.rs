@@ -1,5 +1,5 @@
 use axum::{extract::{FromRef, FromRequestParts}, http::request::Parts};
-use crate::{models::{fetch::{Api, CreateApi, CreateApiMembers, Role, UpdateApi}, user::User}, repositories::fetch::{FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
+use crate::{models::{fetch::{Api, ApiMembers, CreateApi, CreateApiMembers, Role, UpdateApi}, user::User}, repository::fetch::{FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
 
 #[allow(dead_code)]
 pub struct FetchService {
@@ -15,6 +15,7 @@ impl FetchService {
         Self {fetch_repo, member_repo, state}
     }
 
+    /// API AREA
     pub async fn get_all_fetch(&self) -> Result<Vec<Api>, AppError> {
         let query = self.fetch_repo.get_all_fetch()
             .await
@@ -103,13 +104,32 @@ impl FetchService {
         Ok(query)
     }
     
-    pub async fn delete_fetch(&self,id: &i32, _: User) -> Result<Api, AppError> {
-        // BUAT PENGECEKAN MEMBER USER
+    pub async fn delete_fetch(&self,id: &i32, user: User) -> Result<Api, AppError> {
+        let member = self.find_member_id(*id, user.id).await?;
+        if member.role != Some(Role::Owner) {
+            return Err(AppError::Forbidden("Only owner allowed to delete fetch api.".to_string()));
+        }
         let query = self.fetch_repo.delete(id)
             .await
             .map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
 
         Ok(query)
+    }
+
+    /// MEMBER AREA
+    pub async fn find_member_id(&self, fetch_id: i32, user_id: i32) -> Result<ApiMembers, AppError>{
+        let q = self.member_repo.find_by_id(fetch_id, user_id)
+            .await
+            .map_err(|e| {AppError::NotFound(format!("Database : {}", e))})?;
+        
+        Ok(q)
+    }
+
+    pub async fn find_members(&self, fetch_id: i32) -> Result<Vec<ApiMembers>, AppError> {
+        let q = self.member_repo.find_members(fetch_id)
+            .await
+            .map_err(|e| {AppError::NotFound(format!("Database : {}", e))})?;
+        Ok(q)
     }
 }
 

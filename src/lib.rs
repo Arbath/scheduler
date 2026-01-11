@@ -6,7 +6,7 @@ pub mod middleware;
 pub mod config;
 pub mod utils;
 pub mod db;
-pub mod repositories;
+pub mod repository;
 pub mod jobs;
 pub mod state;
 

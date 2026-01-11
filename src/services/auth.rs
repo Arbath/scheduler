@@ -1,6 +1,6 @@
 use crate::models::user::User; 
-use crate::repositories::user::*;
-use crate::repositories::token::*;
+use crate::repository::user::*;
+use crate::repository::token::*;
 use crate::utils::auth::*; 
 use crate::models::auth::{LoginReq, LoginRes};
 use crate::state::AppState;

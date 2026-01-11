@@ -1,6 +1,6 @@
 use axum::{extract::{FromRef, FromRequestParts},http::request::Parts};
 use crate::utils::response::*;
-use crate::{repositories::user::UserRepository, state::AppState};
+use crate::{repository::user::UserRepository, state::AppState};
 use crate::models::user::*;
 
 #[allow(dead_code)]
