@@ -1,6 +1,6 @@
-use axum::{Router, routing::*};
+use axum::{Router, routing::{get, post, patch, delete}};
 
-use crate::handlers::user::*;
+use crate::handlers::user::{get_profile, update_profile, get_all_users, create_user, delete_user};
 use crate::state::AppState;
 
 

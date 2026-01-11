@@ -15,5 +15,6 @@ pub struct JwtConfig {
 pub struct AppState {
     pub jwt_config: Arc<JwtConfig>, 
     pub database: PgPool,
+    pub http_client: reqwest::Client,
     pub email_job_queue: PostgresStorage<EmailJob>,
 }

@@ -43,9 +43,18 @@ async fn main() {
 
     setup_background_workers(pool.clone(),email_storage.clone()).await;
 
+    let http_client = reqwest::Client::builder()
+        .user_agent("Teknohole/1.0")
+        .timeout(std::time::Duration::from_secs(10)) 
+        .pool_idle_timeout(std::time::Duration::from_secs(90))
+        .pool_max_idle_per_host(10)
+        .build()
+        .unwrap();
+
     let state = AppState {
         jwt_config: Arc::new(jwt_config),
         database: pool,
+        http_client: http_client,
         email_job_queue: email_storage.clone(),
     };
     

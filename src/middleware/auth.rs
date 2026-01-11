@@ -52,7 +52,7 @@ async fn fetch_user_from_request(parts: &Parts, state: &AppState) -> Result<User
     let user_id = claims.sub.parse::<i32>()
         .map_err(|_| AppError::AuthError("Invalid ID format".to_string()))?;
 
-    let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_id)
+    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1").bind(user_id)
         .fetch_optional(&state.database)
         .await
         .map_err(|e| AppError::InternalError(e.to_string()))?

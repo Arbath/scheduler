@@ -69,6 +69,7 @@ impl WebResponse<()> {
 }
 
 // Custom ERROR
+#[derive(Debug)]
 pub enum AppError {
     AuthError(String),
     InternalError(String),

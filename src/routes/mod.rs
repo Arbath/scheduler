@@ -1,6 +1,7 @@
 pub mod home;
 pub mod user;
 pub mod auth;
+pub mod fetch;
 pub mod scheduler;
 
 use axum::Router;
@@ -11,5 +12,6 @@ pub fn create_routes() -> Router<AppState> {
         .merge(home::routes())
         .merge(auth::routes())
         .merge(user::routes())
+        .merge(fetch::routes())
         .merge(scheduler::routes())
 }
