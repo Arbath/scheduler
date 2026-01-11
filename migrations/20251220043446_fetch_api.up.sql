@@ -9,7 +9,22 @@ BEGIN
             'rest',
             'websocket',
             'mqtt',
-            'graph'
+            'graphql'
+        );
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_type WHERE typname = 'fetch_api_method'
+    ) THEN
+        CREATE TYPE fetch_api_method AS ENUM (
+            'get',
+            'post',
+            'put',
+            'patch',
+            'delete'
         );
     END IF;
 END $$;
@@ -86,6 +101,8 @@ CREATE TABLE IF NOT EXISTS fetch_api (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     type fetch_api_type NOT NULL DEFAULT 'rest',
+    method fetch_api_method DEFAULT 'get',
+    topic JSONB DEFAULT '{}'::jsonb,
     job_id TEXT NOT NULL UNIQUE,
     description TEXT,
 
@@ -130,7 +147,7 @@ CREATE TABLE IF NOT EXISTS fetch_api_data (
     -- RESPONSE
     status_code SMALLINT,
     response TEXT,
-    response_headers JSONB,
+    response_headers JSONB DEFAULT '{}'::jsonb,
 
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
