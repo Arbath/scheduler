@@ -13,7 +13,7 @@ pub struct WebResponse<T> {
     pub message: String,
     pub path: String,
     pub timestamp: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<T>,
 }
 
@@ -142,7 +142,7 @@ impl IntoResponse for AppError {
 // Helper (?)
 impl From<sqlx::Error> for AppError {
     fn from(err: sqlx::Error) -> Self {
-        AppError::InternalError(format!("Database Error: {}", err))
+        AppError::BadRequest(format!("Database Error: {}", err))
     }
 }
 

@@ -1,5 +1,5 @@
 use axum::{extract::{FromRef, FromRequestParts}, http::request::Parts};
-use crate::{models::{fetch::{Api, ApiMembers, CreateApi, CreateApiMembers, Role, UpdateApi}, user::User}, repository::fetch::{FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
+use crate::{models::{fetch::{Api, ApiMembers, CreateApi, CreateApiMembers, Role, UpdateApi, UpdateApiMembers}, user::User}, repository::fetch::{FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
 
 #[allow(dead_code)]
 pub struct FetchService {
@@ -18,8 +18,7 @@ impl FetchService {
     /// API AREA
     pub async fn get_all_fetch(&self) -> Result<Vec<Api>, AppError> {
         let query = self.fetch_repo.get_all_fetch()
-            .await
-            .map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
+            .await?;
 
         Ok(query)
     }
@@ -70,10 +69,9 @@ impl FetchService {
                 AppError::BadRequest(format!("Database error: {}", e))
             })?;
 
-        let add_member= CreateApiMembers { fetch_id: (fetch.id), user_id: (user.id), role: Some(Role::Owner) };
-        let _ = self.member_repo.create(add_member)
-            .await
-            .map_err(|e| {AppError::BadRequest(format!("Database: {}", e))})?;
+        let add_member= CreateApiMembers { user_id: (user.id), role: Role::Owner };
+        let _ = self.member_repo.create(fetch.id,add_member)
+            .await?;
 
         Ok(fetch)
     }
@@ -105,30 +103,58 @@ impl FetchService {
     }
     
     pub async fn delete_fetch(&self,id: &i32, user: User) -> Result<Api, AppError> {
-        let member = self.find_member_id(*id, user.id).await?;
+        let member = self.member_repo.find_member_id(*id, user.id).await?;
         if member.role != Some(Role::Owner) {
             return Err(AppError::Forbidden("Only owner allowed to delete fetch api.".to_string()));
         }
         let query = self.fetch_repo.delete(id)
-            .await
-            .map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
+            .await?;
 
         Ok(query)
     }
 
-    /// MEMBER AREA
-    pub async fn find_member_id(&self, fetch_id: i32, user_id: i32) -> Result<ApiMembers, AppError>{
-        let q = self.member_repo.find_by_id(fetch_id, user_id)
+    /// # MEMBER AREA
+    
+    /// Find member by id
+    pub async fn find_member(&self, id: i32) -> Result<ApiMembers, AppError>{
+        let q = self.member_repo.find_by_id(id)
             .await
             .map_err(|e| {AppError::NotFound(format!("Database : {}", e))})?;
         
         Ok(q)
     }
 
+    /// Find all related fetch members
     pub async fn find_members(&self, fetch_id: i32) -> Result<Vec<ApiMembers>, AppError> {
         let q = self.member_repo.find_members(fetch_id)
             .await
             .map_err(|e| {AppError::NotFound(format!("Database : {}", e))})?;
+        Ok(q)
+    }
+
+    // Todo : Verifikasi user 
+    // Add member of fetch id (Role:Owner required)
+    pub async fn add_member(&self,_: User, fetch_id: i32, data: CreateApiMembers) -> Result<ApiMembers, AppError> {
+        let q = self.member_repo.create(fetch_id, data)
+            .await?;
+
+        Ok(q)
+    }
+
+    // Edit member Role:Owner or Editor
+    pub async fn update_member(&self,_: User,id: i32, data:UpdateApiMembers) -> Result<ApiMembers, AppError> {
+        let q = self.member_repo.update(id, data)
+            .await?;
+
+        Ok(q)
+    }
+
+    // Delete member Role:Owner or Editor
+    pub async fn delete_member(&self,_: User, id: i32) -> Result<ApiMembers, AppError> {
+        let q = self.member_repo.delete(id)
+            .await
+            .map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
+
         Ok(q)
     }
 }

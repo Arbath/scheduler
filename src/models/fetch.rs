@@ -87,16 +87,13 @@ pub struct ApiMembers {
 
 #[derive(Serialize, Deserialize, FromRow)]
 pub struct CreateApiMembers {
-    pub fetch_id: i32,
     pub user_id: i32,
-    pub role: Option<Role>,
+    pub role: Role,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct UpdateMemberRequest {
-    pub fetch_id: Option<i32>,
-    pub user_id: Option<i32>,
-    pub role: Option<Role>, 
+#[derive(Debug, Deserialize, FromRow)]
+pub struct UpdateApiMembers {
+    pub role: Role, 
 }
 
 // Struct for table fetch_api_execute

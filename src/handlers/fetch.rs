@@ -4,7 +4,7 @@ use crate::middleware::auth::{AuthAdmin, AuthUser};
 use crate::services::fetch::FetchService;
 use crate::state::AppState;
 use crate::utils::{requests::{ValidatedJson, ValidatedPath}, response::{ApiError, WebResponse}};
-use crate::models::fetch::{CreateApi, UpdateApi};
+use crate::models::fetch::{CreateApi, CreateApiMembers, UpdateApi, UpdateApiMembers};
 
 #[derive(Deserialize, Serialize)]
 struct Todo {
@@ -105,4 +105,69 @@ pub async fn delete_fetch_api(
     service.delete_fetch(&id, user).await.map_err(|e|e.with_path(&uri))?;
 
     Ok(WebResponse::ok_empty(&uri, "Fetch Api Deleted"))
+}
+
+pub async fn get_fetch_member(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(_): AuthUser,
+    service: FetchService,
+) -> Result<impl IntoResponse, ApiError>{
+    let response = service.find_member(id)
+        .await
+        .map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "List fetch members", response))
+}
+
+pub async fn get_all_member(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(_): AuthUser,
+    service: FetchService,
+) -> Result<impl IntoResponse, ApiError>{
+    let response = service.find_members(id)
+        .await
+        .map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "List fetch members", response))
+}
+
+pub async fn create_fetch_member(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+    ValidatedJson(data): ValidatedJson<CreateApiMembers>
+) -> Result<impl IntoResponse, ApiError>{
+    let response = service.add_member(user, id, data)
+        .await
+        .map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::created(&uri, "Success add a member", response))
+}
+
+pub async fn update_fetch_member(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+    ValidatedJson(data): ValidatedJson<UpdateApiMembers>
+) -> Result<impl IntoResponse, ApiError>{
+    let response = service.update_member(user, id, data)
+        .await
+        .map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::created(&uri, "Success add a member", response))
+}
+
+pub async fn delete_fetch_member(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+) -> Result<impl IntoResponse, ApiError> {
+    service.delete_member(user, id).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok_empty(&uri, "Member Deleted"))
 }

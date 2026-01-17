@@ -1,5 +1,5 @@
-use sqlx::{PgPool, QueryBuilder};
-use crate::models::fetch::{Api, ApiData, ApiExecute, ApiHeader, ApiMembers, CreateApi, CreateApiData, CreateApiExecute, CreateApiHeader, CreateApiMembers, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateMemberRequest};
+use sqlx::{PgPool};
+use crate::models::fetch::{Api, ApiData, ApiExecute, ApiHeader, ApiMembers, CreateApi, CreateApiData, CreateApiExecute, CreateApiHeader, CreateApiMembers, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers};
 pub struct FetchRepository {
     pool: PgPool,
 }
@@ -69,11 +69,22 @@ impl FetchRepository {
     
     pub async fn update(&self,id: &i32, data: UpdateApi) -> Result<Api, sqlx::Error> {
         sqlx::query_as::<_,Api>(
-            r#"UPDATE fetch_api
-            SET name = $1, type = $2, method =$3, topic = $4, job_id = $5, description = $6, execute_id = $7, header_id = $8, is_active = $9, secure = $10
-            WHERE id = $11
-            RETURNING *
-            "#
+            r#"
+                    UPDATE fetch_api
+                    SET
+                        name        = COALESCE($1, name),
+                        type        = COALESCE($2, type),
+                        method      = COALESCE($3, method),
+                        topic       = COALESCE($4, topic),
+                        job_id      = COALESCE($5, job_id),
+                        description = COALESCE($6, description),
+                        execute_id  = COALESCE($7, execute_id),
+                        header_id   = COALESCE($8, header_id),
+                        is_active   = COALESCE($9, is_active),
+                        secure      = COALESCE($10, secure)
+                    WHERE id = $11
+                    RETURNING *
+                "#
         )
         .bind(data.name)
         .bind(data.r#type)
@@ -109,9 +120,9 @@ impl FetchMemberRepository {
         Self {pool}
     }
 
-    pub async fn find_by_id(&self, fetch_id: i32, user_id: i32) -> Result<ApiMembers, sqlx::Error> {
+    pub async fn find_member_id(&self, fetch_id: i32,user_id: i32) -> Result<ApiMembers, sqlx::Error> {
         sqlx::query_as::<_, ApiMembers> (
-            r#"SELECT * FROM fetch_api_members WHERE fetch_id = $1 AND user_id = $2 RETURNING *"#
+            r#"SELECT * FROM fetch_api_members WHERE fetch_id = $1 AND user_id = $2"#
         )
         .bind(fetch_id)
         .bind(user_id)
@@ -119,58 +130,61 @@ impl FetchMemberRepository {
         .await
     }
 
+    pub async fn find_by_id(&self, id: i32) -> Result<ApiMembers, sqlx::Error> {
+        sqlx::query_as::<_, ApiMembers> (
+            r#"SELECT * FROM fetch_api_members WHERE id = $1"#
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await
+    }
+
     pub async fn find_members(&self, fetch_id: i32) -> Result<Vec<ApiMembers>, sqlx::Error> {
         sqlx::query_as::<_, ApiMembers> (
-            r#"SELECT * FROM fetch_api_members WHERE fetch_id = $1 RETURNING *"#
+            r#"SELECT * FROM fetch_api_members WHERE fetch_id = $1"#
         )
         .bind(fetch_id)
         .fetch_all(&self.pool)
         .await
     }
 
-    pub async fn create(&self, data: CreateApiMembers) -> Result<CreateApiMembers, sqlx::Error> {
-        sqlx::query_as::<_,CreateApiMembers>(
+    pub async fn create(&self, fetch_id: i32, data: CreateApiMembers) -> Result<ApiMembers, sqlx::Error> {
+        sqlx::query_as::<_,ApiMembers>(
             r#"INSERT INTO fetch_api_members (fetch_id, user_id, role)
             VALUES ($1, $2, $3)
             RETURNING *
             "#
         )
-        .bind(data.fetch_id)
+        .bind(fetch_id)
         .bind(data.user_id)
         .bind(data.role)
         .fetch_one(&self.pool)
         .await
     }
 
-    pub async fn update(&self, id: i32, payload: UpdateMemberRequest) -> Result<(), sqlx::Error> {
-        if payload.fetch_id.is_none() && payload.user_id.is_none() && payload.role.is_none() {
-            return Ok(());
-        }
+    pub async fn update(&self, id: i32, data: UpdateApiMembers) -> Result<ApiMembers, sqlx::Error> {
+        sqlx::query_as::<_,ApiMembers>(
+        r#"
+                UPDATE fetch_api_members
+                SET
+                    role    = COALESCE($3, role)
+                WHERE id = $4
+                RETURNING *
+            "#
+        )
+        .bind(data.role)
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await
+    }
 
-        let mut qb = QueryBuilder::new("UPDATE api_members SET ");
-        let mut separated = qb.separated(", ");
-
-        if let Some(fetch_id) = payload.fetch_id {
-            separated.push("fetch_id = ");
-            separated.push_bind_unseparated(fetch_id);
-        }
-
-        if let Some(user_id) = payload.user_id {
-            separated.push("user_id = ");
-            separated.push_bind_unseparated(user_id);
-        }
-
-        if let Some(role) = payload.role {
-            separated.push("role = ");
-            separated.push_bind_unseparated(role);
-        }
-
-        qb.push(" WHERE id = ");
-        qb.push_bind(id);
-        let query = qb.build();
-        query.execute(&self.pool).await?;
-
-        Ok(())
+    pub async fn delete(&self, id: i32) -> Result<ApiMembers, sqlx::Error> {
+        sqlx::query_as::<_, ApiMembers>(
+            r#"DELETE FROM fetch_api_members WHERE id = $1 RETURNING *"#
+        )
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await
     }
 }
 
