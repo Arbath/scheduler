@@ -1,5 +1,5 @@
 use sqlx::{PgPool};
-use crate::models::fetch::{Api, ApiData, ApiExecute, ApiHeader, ApiMembers, CreateApi, CreateApiData, CreateApiExecute, CreateApiHeader, CreateApiMembers, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers};
+use crate::{models::fetch::{Api, ApiData, ApiExecute, ApiHeader, ApiMembers, CreateApi, CreateApiData, CreateApiExecute, CreateApiHeader, CreateApiMembers, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers}};
 pub struct FetchRepository {
     pool: PgPool,
 }
@@ -201,6 +201,15 @@ impl FetchExecuteRepository {
         .fetch_one(&self.pool)
         .await
     }
+    
+    pub async fn find_all(&self, user_id: i32) -> Result<Vec<ApiExecute>, sqlx::Error> {
+        sqlx::query_as::<_, ApiExecute> (
+            r#"SELECT * FROM fetch_api_execute WHERE user_id = $1"#
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await
+    }
 
     pub async fn create(&self, data: CreateApiExecute) -> Result<ApiExecute, sqlx::Error> {
         sqlx::query_as::<_,ApiExecute> (
@@ -221,12 +230,11 @@ impl FetchExecuteRepository {
     pub async fn update(&self, id: i32, data: UpdateApiExecute) -> Result<ApiExecute, sqlx::Error> {
         sqlx::query_as::<_,ApiExecute>(
             r#" UPDATE fetch_api_execute
-            SET user_id=$1, name=$2, is_repeat=$3, type=$4, value=$5
-            WHERE id = $6
+            SET name=$1, is_repeat=$2, type=$3, value=$4
+            WHERE id = $5
             RETURNING *
             "#
         )
-        .bind(data.user_id)
         .bind(data.name)
         .bind(data.is_repeat)
         .bind(data.r#type)

@@ -1,11 +1,6 @@
 use axum::routing::{get, post, delete, patch};
 use axum::Router;
-use crate::handlers::fetch::{
-    fetch_external_api, get_all, get_fetch_api, get_fetch_job, get_all_member, get_fetch_member,
-    create_fetch_api, create_fetch_member,
-    update_fetch_api, update_fetch_member,
-    delete_fetch_api, delete_fetch_member, 
-};
+use crate::handlers::fetch::*;
 use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
@@ -19,9 +14,15 @@ pub fn routes() -> Router<AppState> {
 
         .route("/fetch/{job_id}/job", get(get_fetch_job))
 
-        .route("/fetch/{id}/member", get(get_all_member))
-        .route("/fetch/{id}/member", post(create_fetch_member))
-        .route("/fetch/member/{id}", get(get_fetch_member))
-        .route("/fetch/member/{id}", patch(update_fetch_member))
-        .route("/fetch/member/{id}", delete(delete_fetch_member))
+        .route("/fetch/{fetch_id}/member", get(get_all_member))
+        .route("/fetch/{fetch_id}/member", post(create_fetch_member))
+        .route("/fetch/{fetch_id}/member/{id}", get(get_fetch_member))
+        .route("/fetch/{fetch_id}/member/{id}", patch(update_fetch_member))
+        .route("/fetch/{fetch_id}/member/{id}", delete(delete_fetch_member))
+
+        .route("/fetch/execute", get(get_all_execute))
+        .route("/fetch/execute", post(create_fetch_execute))
+        .route("/fetch/execute/{id}", get(get_fetch_execute))
+        .route("/fetch/execute/{id}", patch(update_fetch_execute))
+        .route("/fetch/execute/{id}", delete(delete_fetch_execute))
 }

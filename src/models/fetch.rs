@@ -119,19 +119,38 @@ pub struct ApiExecute {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CreateApiExecute {
-    pub user_id: Option<i32>,
+    pub user_id: i32,
     pub name: String,
     pub is_repeat: bool,
     pub r#type: Option<ExecuteType>,
     pub value: i64,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct UpdateApiExecute {
-    pub user_id: Option<i32>,
+
+#[derive(Deserialize)]
+pub struct ReqCreateApiExecute {
     pub name: String,
     pub is_repeat: bool,
     pub r#type: Option<ExecuteType>,
     pub value: i64,
+}
+impl ReqCreateApiExecute {
+    pub fn into_model(self, user_id:i32) -> CreateApiExecute {
+        CreateApiExecute {
+            user_id,
+            name: self.name,
+            is_repeat: self.is_repeat,
+            r#type: self.r#type,
+            value: self.value,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UpdateApiExecute {
+    pub name: Option<String>,
+    pub is_repeat: Option<bool>,
+    pub r#type: Option<ExecuteType>,
+    pub value: Option<i64>,
 }
 
 // Struct for table fetch_api_header
@@ -146,14 +165,14 @@ pub struct ApiHeader {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CreateApiHeader {
-    pub user_id: Option<i32>,
+    pub user_id: i32,
     pub name: String,
     pub headers: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UpdateApiHeader {
-    pub user_id: Option<i32>,
+    pub user_id: i32,
     pub name: Option<String>,
     pub headers: Option<Value>,
 }
@@ -176,7 +195,7 @@ pub struct ApiData {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CreateApiData {
     pub fetch_id: i32,
-    pub user_id: Option<i32>,
+    pub user_id: i32,
     pub name: String,
     pub payload: Option<String>,
     pub status_code: Option<i16>,
@@ -186,7 +205,7 @@ pub struct CreateApiData {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UpdateApiData {
     pub fetch_id: Option<i32>,
-    pub user_id: Option<i32>,
+    pub user_id: i32,
     pub name: Option<String>,
     pub payload: Option<String>,
     pub status_code: Option<i16>,
