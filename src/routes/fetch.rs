@@ -25,4 +25,16 @@ pub fn routes() -> Router<AppState> {
         .route("/fetch/execute/{id}", get(get_fetch_execute))
         .route("/fetch/execute/{id}", patch(update_fetch_execute))
         .route("/fetch/execute/{id}", delete(delete_fetch_execute))
+
+        .route("/fetch/header", get(get_all_header))
+        .route("/fetch/header", post(create_fetch_header))
+        .route("/fetch/header/{id}", get(get_fetch_header))
+        .route("/fetch/header/{id}", patch(update_fetch_header))
+        .route("/fetch/header/{id}", delete(delete_fetch_header))
+
+        .route("/fetch/data", get(get_all_data))
+        .route("/fetch/data", post(create_fetch_data))
+        .route("/fetch/data/{id}", get(get_fetch_data))
+        .route("/fetch/data/{id}", patch(update_fetch_data))
+        .route("/fetch/data/{id}", delete(delete_fetch_data))
 }

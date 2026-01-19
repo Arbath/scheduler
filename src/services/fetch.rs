@@ -1,5 +1,5 @@
 use axum::{extract::{FromRef, FromRequestParts}, http::request::Parts};
-use crate::{models::{fetch::{Api, ApiExecute, ApiMembers, CreateApi, CreateApiExecute, CreateApiMembers, ReqCreateApiExecute, Role, UpdateApi, UpdateApiExecute, UpdateApiMembers}, user::User}, repository::fetch::{FetchDataRepository, FetchExecuteRepository, FetchHeaderRepository, FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
+use crate::{models::{fetch::{Api, ApiData, ApiExecute, ApiHeader, ApiMembers, CreateApi, CreateApiData, CreateApiExecute, CreateApiHeader, CreateApiMembers, ReqCreateApiData, ReqCreateApiExecute, ReqCreateApiHeader, Role, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers}, user::User}, repository::fetch::{FetchDataRepository, FetchExecuteRepository, FetchHeaderRepository, FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
 
 #[allow(dead_code)]
 pub struct FetchService {
@@ -23,34 +23,29 @@ impl FetchService {
 
     /// #API AREA
 
-    /// get all fetch api only super user
-    pub async fn get_all_fetch(&self) -> Result<Vec<Api>, AppError> {
-        let query = self.fetch_repo.get_all_fetch()
-            .await?;
+    /// get all fetch user
+    pub async fn get_all_fetch_user(&self, user: User) -> Result<Vec<Api>, AppError> {
+        let query = self.fetch_repo.get_all_fetch_user(user.id).await?;
 
         Ok(query)
     }
 
     pub async fn get_fetch_by_id(&self, id: &i32) -> Result<Api, AppError> {
         let query = self.fetch_repo.get_by_id(id)
-            .await
-            .map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
+            .await.map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
 
         Ok(query)
     }
 
     pub async fn get_fetch_by_job(&self, job_id: &str) -> Result<Api, AppError> {
         let query = self.fetch_repo.find_by_job_id(job_id)
-            .await
-            .map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
+            .await.map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
 
         Ok(query)
     }
 
     pub async fn get(&self, id: i32) -> Result<Api, AppError> {
-        let query = self.fetch_repo.get_by_id(&id)
-            .await
-            .map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
+        let query = self.fetch_repo.get_by_id(&id).await.map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
 
         Ok(query)
     }
@@ -84,8 +79,18 @@ impl FetchService {
         Ok(fetch)
     }
 
-    pub async fn update_fetch(&self,id: &i32, data: UpdateApi, _: User) -> Result<Api, AppError> {
-        // BUAT PENGECEKAN MEMBER USER
+    /// Update fetch viewer not allowed
+    pub async fn update_fetch(&self, id: &i32, data: UpdateApi, user: User) -> Result<Api, AppError> {
+        if !user.is_superuser {
+            let member = self.member_repo.find_member_id(*id, user.id)
+                .await
+                .map_err(|_| AppError::Forbidden("You are not allowed to update this data!".to_string()))?;
+
+            if member.role == Some(Role::Viewer) {
+                return Err(AppError::Forbidden("Viewer not allowed to update fetch api.".to_string()));
+            }
+        }
+
         let query = self.fetch_repo.update(id, data)
             .await
             .map_err(|e| {
@@ -111,14 +116,21 @@ impl FetchService {
     }
     
     /// delete fetch api
-    pub async fn delete_fetch(&self,id: &i32, user: User) -> Result<Api, AppError> {
-        let member = self.member_repo.find_member_id(*id, user.id).await?;
+    pub async fn delete_fetch(&self,id: i32, user: User) -> Result<Api, AppError> {
+        if user.is_superuser {
+            let query = self.fetch_repo.delete(id).await?;
+            return Ok(query);
+        }
+        let member = self.member_repo.find_member_id(id, user.id)
+            .await
+            .map_err(|_| AppError::Forbidden("Access denied".to_string()))?;
+
         if member.role != Some(Role::Owner) {
             return Err(AppError::Forbidden("Only owner allowed to delete fetch api.".to_string()));
         }
-        let query = self.fetch_repo.delete(id)
-            .await?;
 
+        let query = self.fetch_repo.delete(id).await?;
+        
         Ok(query)
     }
 
@@ -136,7 +148,7 @@ impl FetchService {
                 return Err(AppError::Forbidden("You don't have permission to view members!".to_string()));
             }
         }
-        let q = self.member_repo.find_by_id(id)
+        let q = self.member_repo.find_member_id(fetch_id,id)
             .await
             .map_err(|e| {AppError::NotFound(format!("Database : {}", e))})?;
         
@@ -193,7 +205,7 @@ impl FetchService {
             }
         }
 
-        let q = self.member_repo.update(id, data)
+        let q = self.member_repo.update(fetch_id ,id, data)
             .await?;
 
         Ok(q)
@@ -212,7 +224,7 @@ impl FetchService {
             }
         }
 
-        let target_member = self.member_repo.find_by_id(id).await
+        let target_member = self.member_repo.find_member_id(fetch_id,id).await
             .map_err(|_| AppError::NotFound("Member target not found".to_string()))?;
 
         if target_member.fetch_id != fetch_id {
@@ -220,7 +232,7 @@ impl FetchService {
             return Err(AppError::BadRequest("Member target not a member on this fetch".to_string()));
         }
         
-        let q = self.member_repo.delete(id)
+        let q = self.member_repo.delete(fetch_id, id)
             .await
             .map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
 
@@ -259,7 +271,7 @@ impl FetchService {
     /// update execute data
     pub async fn update_execute(&self, user: User, id: i32, req: UpdateApiExecute) -> Result<ApiExecute, AppError> {
         let execute = self.execute_repo.find_by_id(id).await?;
-        if !user.is_superuser || execute.user_id != user.id {
+        if !user.is_superuser && execute.user_id != user.id {
             return Err(AppError::Forbidden("You don't have permission to access this data".to_string()));
         }
         
@@ -269,13 +281,118 @@ impl FetchService {
     /// delete execute data
     pub async fn delete_execute(&self, user: User, id: i32) -> Result<ApiExecute, AppError> {
         let execute = self.execute_repo.find_by_id(id).await?;
-        if !user.is_superuser || execute.user_id != user.id {
+        if !user.is_superuser && execute.user_id != user.id {
             return Err(AppError::Forbidden("You don't have permission to access this data".to_string()));
         }
 
         Ok(self.execute_repo.delete(id).await?)
     }
 
+    /// #Fetch Header Area
+    
+    /// get one
+    pub async fn get_header(&self, user: User, id: i32) -> Result<ApiHeader, AppError> {
+        let q = self.header_repo.find_by_id(id).await?;
+        if !user.is_superuser && q.user_id != user.id {
+            return Err(AppError::Forbidden("You don't have permission to access this data".to_string()));
+        }
+
+        Ok(q)
+    }
+
+    /// get all headers related with user
+    pub async fn get_all_header(&self, user: User) -> Result<Vec<ApiHeader>, AppError> {
+        let q = self.header_repo.find_all(user.id).await?;
+
+        Ok(q)
+    }
+
+    /// Create headers user
+    pub async fn create_header(&self, user: User, data: ReqCreateApiHeader) -> Result<ApiHeader, AppError> {
+        let model: CreateApiHeader = data.into_model(user.id);
+        let q = self.header_repo.create(model).await?;
+
+        Ok(q)
+    }
+
+    /// Update header user
+    pub async fn update_header(&self, user: User, id: i32, data: UpdateApiHeader) -> Result<ApiHeader, AppError> {
+        let header = self.header_repo.find_by_id(id).await?;
+
+        if !user.is_superuser && header.user_id != user.id {
+            return Err(AppError::Forbidden("You don't have permission to update this data".to_string()));
+        }
+
+        let q = self.header_repo.update(id,data).await?;
+
+        Ok(q)
+    }
+
+    /// Delete header user
+    pub async fn delete_header(&self, user: User, id: i32) -> Result<ApiHeader, AppError> {
+        let header = self.header_repo.find_by_id(id).await?;
+
+        if !user.is_superuser && header.user_id != user.id {
+            return Err(AppError::Forbidden("You don't have permission to delete this data".to_string()));
+        }
+
+        let q = self.header_repo.delete(id).await?;
+
+        Ok(q)
+    }
+
+    /// #Fetch Data Area
+    
+    /// get one
+    pub async fn get_data(&self, user: User, id: i32) -> Result<ApiData, AppError> {
+        let q = self.data_repo.find_by_id(id).await?;
+        if !user.is_superuser && q.user_id != user.id {
+            return Err(AppError::Forbidden("You don't have permission to access this data".to_string()));
+        }
+
+        Ok(q)
+    }
+
+    /// get all fetch data related with user
+    pub async fn get_all_data(&self, user: User) -> Result<Vec<ApiData>, AppError> {
+        let q = self.data_repo.find_all(user.id).await?;
+
+        Ok(q)
+    }
+
+    /// Create fetch data user
+    pub async fn create_data(&self, user: User, data: ReqCreateApiData) -> Result<ApiData, AppError> {
+        let model: CreateApiData = data.into_model(user.id);
+        let q = self.data_repo.create(model).await?;
+
+        Ok(q)
+    }
+
+    /// Update fetch data user
+    pub async fn update_data(&self, user: User, id: i32, data: UpdateApiData) -> Result<ApiData, AppError> {
+        let fetch_data = self.data_repo.find_by_id(id).await?;
+
+        if !user.is_superuser && fetch_data.user_id != user.id {
+            return Err(AppError::Forbidden("You don't have permission to update this data".to_string()));
+        }
+
+        let q = self.data_repo.update(id,data).await?;
+
+        Ok(q)
+    }
+
+    /// Delete fetch data user
+    pub async fn delete_data(&self, user: User, id: i32) -> Result<ApiData, AppError> {
+        let fetch_data = self.data_repo.find_by_id(id).await?;
+
+        if !user.is_superuser && fetch_data.user_id != user.id {
+            return Err(AppError::Forbidden("You don't have permission to delete this data".to_string()));
+        }
+
+        let q = self.data_repo.delete(id).await?;
+
+        Ok(q)
+    }
 }
 
 

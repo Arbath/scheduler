@@ -29,7 +29,7 @@ pub struct Api {
     pub id: i32,
     pub name: String,
     pub r#type: ApiType,
-    pub method: ApiMethod,
+    pub method: Option<ApiMethod>,
     pub topic: Option<Value>,
     pub job_id: String,
     pub description: String,
@@ -78,7 +78,6 @@ pub enum Role {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ApiMembers {
-    pub id: i32,
     pub fetch_id: i32,
     pub user_id: i32,
     pub role: Option<Role>,
@@ -126,6 +125,7 @@ pub struct CreateApiExecute {
     pub value: i64,
 }
 
+// DTO execute
 #[derive(Deserialize)]
 pub struct ReqCreateApiExecute {
     pub name: String,
@@ -170,9 +170,25 @@ pub struct CreateApiHeader {
     pub headers: Value,
 }
 
+// DTO header
+#[derive(Deserialize)]
+pub struct ReqCreateApiHeader {
+    pub name: String,
+    pub headers: Value,
+}
+
+impl ReqCreateApiHeader {
+    pub fn into_model(self, user_id: i32) -> CreateApiHeader {
+        CreateApiHeader {
+            user_id,
+            name: self.name,
+            headers: self.headers,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UpdateApiHeader {
-    pub user_id: i32,
     pub name: Option<String>,
     pub headers: Option<Value>,
 }
@@ -181,7 +197,7 @@ pub struct UpdateApiHeader {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ApiData {
     pub id: i32,
-    pub fetch_id: i32,
+    pub fetch_id: Option<i32>,
     pub user_id: i32,
     pub name: String,
     pub payload: String,
@@ -194,7 +210,7 @@ pub struct ApiData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CreateApiData {
-    pub fetch_id: i32,
+    pub fetch_id: Option<i32>,
     pub user_id: i32,
     pub name: String,
     pub payload: Option<String>,
@@ -202,10 +218,33 @@ pub struct CreateApiData {
     pub response: Option<String>,
     pub response_headers: Option<Value>,
 }
+
+// DTO payload data
+#[derive(Deserialize)]
+pub struct ReqCreateApiData {
+    pub fetch_id: Option<i32>,
+    pub name: String,
+    pub payload: Option<String>,
+    pub status_code: Option<i16>,
+    pub response: Option<String>,
+    pub response_headers: Option<Value>,
+}
+impl ReqCreateApiData {
+    pub fn into_model(self, user_id: i32) -> CreateApiData {
+        CreateApiData {
+            fetch_id: self.fetch_id,
+            user_id,
+            name: self.name,
+            payload: self.payload,
+            status_code: self.status_code,
+            response: self.response,
+            response_headers: self.response_headers,
+        }
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UpdateApiData {
     pub fetch_id: Option<i32>,
-    pub user_id: i32,
     pub name: Option<String>,
     pub payload: Option<String>,
     pub status_code: Option<i16>,

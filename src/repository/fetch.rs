@@ -47,6 +47,20 @@ impl FetchRepository {
         .await
     }
 
+    pub async fn get_all_fetch_user(&self, user_id: i32) -> Result<Vec<Api>, sqlx::Error> {
+        sqlx::query_as::<_,Api>(     
+        r#"
+                SELECT f.* FROM fetch_api f
+                INNER JOIN fetch_api_members m ON f.id = m.fetch_id
+                WHERE m.user_id = $1
+                ORDER BY f.updated_at DESC
+            "#
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await
+    }
+
     pub async fn create(&self, data: CreateApi) -> Result<Api, sqlx::Error> {
         sqlx::query_as::<_,Api>(
             r#"INSERT INTO fetch_api (name, type, method, topic, job_id, description, execute_id, header_id, is_active)
@@ -101,7 +115,7 @@ impl FetchRepository {
         .await
     }
 
-    pub async fn delete(&self, id: &i32) -> Result<Api, sqlx::Error> {
+    pub async fn delete(&self, id: i32) -> Result<Api, sqlx::Error> {
         sqlx::query_as::<_, Api>(
             r#"
             DELETE FROM fetch_api
@@ -130,15 +144,6 @@ impl FetchMemberRepository {
         .await
     }
 
-    pub async fn find_by_id(&self, id: i32) -> Result<ApiMembers, sqlx::Error> {
-        sqlx::query_as::<_, ApiMembers> (
-            r#"SELECT * FROM fetch_api_members WHERE id = $1"#
-        )
-        .bind(id)
-        .fetch_one(&self.pool)
-        .await
-    }
-
     pub async fn find_members(&self, fetch_id: i32) -> Result<Vec<ApiMembers>, sqlx::Error> {
         sqlx::query_as::<_, ApiMembers> (
             r#"SELECT * FROM fetch_api_members WHERE fetch_id = $1"#
@@ -162,26 +167,28 @@ impl FetchMemberRepository {
         .await
     }
 
-    pub async fn update(&self, id: i32, data: UpdateApiMembers) -> Result<ApiMembers, sqlx::Error> {
+    pub async fn update(&self,fetch_id: i32, id: i32, data: UpdateApiMembers) -> Result<ApiMembers, sqlx::Error> {
         sqlx::query_as::<_,ApiMembers>(
         r#"
                 UPDATE fetch_api_members
                 SET
                     role    = COALESCE($3, role)
-                WHERE id = $4
+                WHERE fetch_id =$1 AND user_id = $2
                 RETURNING *
             "#
         )
-        .bind(data.role)
+        .bind(fetch_id)
         .bind(id)
+        .bind(data.role)
         .fetch_one(&self.pool)
         .await
     }
 
-    pub async fn delete(&self, id: i32) -> Result<ApiMembers, sqlx::Error> {
+    pub async fn delete(&self,fetch_id: i32, id: i32) -> Result<ApiMembers, sqlx::Error> {
         sqlx::query_as::<_, ApiMembers>(
-            r#"DELETE FROM fetch_api_members WHERE id = $1 RETURNING *"#
+            r#"DELETE FROM fetch_api_members WHERE fetch_id=$1 AND user_id = $2 RETURNING *"#
         )
+        .bind(fetch_id)
         .bind(id)
         .fetch_one(&self.pool)
         .await
@@ -268,6 +275,15 @@ impl FetchHeaderRepository {
         .await
     }
 
+    pub async fn find_all(&self, user_id: i32) -> Result<Vec<ApiHeader>, sqlx::Error> {
+        sqlx::query_as::<_,ApiHeader> (
+            r#"SELECT * FROM fetch_api_header WHERE user_id = $1"#
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await
+    }
+
     pub async fn create(&self, data: CreateApiHeader) -> Result<ApiHeader, sqlx::Error>{
         sqlx::query_as::<_,ApiHeader>(
             r#" INSERT INTO fetch_api_header (user_id, name, headers)
@@ -282,16 +298,16 @@ impl FetchHeaderRepository {
         .await
     }
 
-    pub async fn update(&self, data: UpdateApiHeader) -> Result<ApiHeader, sqlx::Error>{
+    pub async fn update(&self,id: i32, data: UpdateApiHeader) -> Result<ApiHeader, sqlx::Error>{
         sqlx::query_as::<_,ApiHeader>(
             r#"UPDATE fetch_api_header 
-            SET user_id = $1, name=$2, headers=$3
+            SET name=$1, headers=$2 WHERE id=$3
             RETURNING *
             "#
         )
-        .bind(data.user_id)
         .bind(data.name)
         .bind(data.headers)
+        .bind(id)
         .fetch_one(&self.pool)
         .await
     }
@@ -320,9 +336,18 @@ impl FetchDataRepository {
         .await
     }
 
+    pub async fn find_all(&self, user_id: i32) -> Result<Vec<ApiData>, sqlx::Error> {
+        sqlx::query_as::<_,ApiData> (
+            r#"SELECT * FROM fetch_api_data WHERE user_id = $1"#
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await
+    }
+
     pub async fn create(&self, data: CreateApiData) -> Result<ApiData, sqlx::Error>{
         sqlx::query_as::<_,ApiData> (
-            r#"INSERT INTO fetch_api_data (fetch_id, user_id, name, payload, status_code, response, response_header)
+            r#"INSERT INTO fetch_api_data (fetch_id, user_id, name, payload, status_code, response, response_headers)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             "#
@@ -341,12 +366,11 @@ impl FetchDataRepository {
     pub async fn update(&self, id: i32, data: UpdateApiData) -> Result<ApiData, sqlx::Error>{
         sqlx::query_as::<_,ApiData> (
             r#"UPDATE fetch_api_data
-            SET fetch_id=$1, user_id=$2, name=$3, payload=$4, status_code=$5, response=$6, response_headers=$7
-            WHERE id=$8
+            SET fetch_id=$1, name=$2, payload=$3, status_code=$4, response=$5, response_headers=$6
+            WHERE id=$7 RETURNING *
             "#
         )
         .bind(data.fetch_id)
-        .bind(data.user_id)
         .bind(data.name)
         .bind(data.payload)
         .bind(data.status_code)

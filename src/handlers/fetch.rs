@@ -1,10 +1,10 @@
 use axum::{Json, extract::State, http::Uri, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-use crate::middleware::auth::{AuthAdmin, AuthUser}; 
+use crate::middleware::auth::{AuthUser}; 
 use crate::services::fetch::FetchService;
 use crate::state::AppState;
 use crate::utils::{requests::{ValidatedJson, ValidatedPath}, response::{ApiError, WebResponse}};
-use crate::models::fetch::{CreateApi, CreateApiMembers, ReqCreateApiExecute, UpdateApi, UpdateApiExecute, UpdateApiMembers};
+use crate::models::fetch::{CreateApi, CreateApiMembers, ReqCreateApiData, ReqCreateApiExecute, ReqCreateApiHeader, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers};
 
 #[derive(Deserialize, Serialize)]
 struct Todo {
@@ -43,10 +43,10 @@ pub async fn fetch_external_api(
 
 pub async fn get_all(
     uri: Uri,
-    AuthAdmin(_): AuthAdmin,
+    AuthUser(user): AuthUser,
     service: FetchService,
 ) -> Result<impl IntoResponse, ApiError> {
-    let response = service.get_all_fetch().await.map_err(|e|e.with_path(&uri))?;
+    let response = service.get_all_fetch_user(user).await.map_err(|e|e.with_path(&uri))?;
 
     Ok(WebResponse::ok(&uri, "Success", response))
 }
@@ -81,7 +81,7 @@ pub async fn create_fetch_api(
 ) -> Result<impl IntoResponse, ApiError> {
     let response = service.create_fetch(data, user).await.map_err(|e|e.with_path(&uri))?;
 
-    Ok(WebResponse::ok(&uri, "Fetch Api Created", response))
+    Ok(WebResponse::ok(&uri, "Fetch Api Created!", response))
 }
 
 pub async fn update_fetch_api(
@@ -93,7 +93,7 @@ pub async fn update_fetch_api(
 ) -> Result<impl IntoResponse, ApiError> {
     let response = service.update_fetch(&id, data, user).await.map_err(|e|e.with_path(&uri))?;
 
-    Ok(WebResponse::ok(&uri, "Fetch Api Created", response))
+    Ok(WebResponse::ok(&uri, "Fetch Api Updated!", response))
 }
 
 pub async fn delete_fetch_api(
@@ -102,9 +102,9 @@ pub async fn delete_fetch_api(
     AuthUser(user): AuthUser,
     service: FetchService,
 ) -> Result<impl IntoResponse, ApiError> {
-    service.delete_fetch(&id, user).await.map_err(|e|e.with_path(&uri))?;
+    let response = service.delete_fetch(id, user).await.map_err(|e|e.with_path(&uri))?;
 
-    Ok(WebResponse::ok_empty(&uri, "Fetch Api Deleted"))
+    Ok(WebResponse::ok(&uri, "Fetch Api Deleted!", response))
 }
 
 pub async fn get_fetch_member(
@@ -158,7 +158,7 @@ pub async fn update_fetch_member(
         .await
         .map_err(|e|e.with_path(&uri))?;
 
-    Ok(WebResponse::created(&uri, "Success add a member", response))
+    Ok(WebResponse::ok(&uri, "Success update a member", response))
 }
 
 pub async fn delete_fetch_member(
@@ -167,9 +167,9 @@ pub async fn delete_fetch_member(
     AuthUser(user): AuthUser,
     service: FetchService,
 ) -> Result<impl IntoResponse, ApiError> {
-    service.delete_member(user, id, fetch_id).await.map_err(|e|e.with_path(&uri))?;
+    let response = service.delete_member(user, id, fetch_id).await.map_err(|e|e.with_path(&uri))?;
 
-    Ok(WebResponse::ok_empty(&uri, "Member Deleted"))
+    Ok(WebResponse::ok(&uri, "Member Deleted", response))
 }
 
 pub async fn get_fetch_execute(
@@ -224,4 +224,114 @@ pub async fn delete_fetch_execute(
     let response = service.delete_execute(user, id).await.map_err(|e|e.with_path(&uri))?;
 
     Ok(WebResponse::ok(&uri, "Api execute deleted!", response))
+}
+
+pub async fn get_all_header(
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.get_all_header(user).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "List headers", response))
+}
+
+pub async fn create_fetch_header(
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+    ValidatedJson(data): ValidatedJson<ReqCreateApiHeader>,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.create_header(user, data).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::created(&uri, "Header created!", response))
+}
+
+pub async fn get_fetch_header(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.get_header(user, id).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "Success!", response))
+}
+
+pub async fn update_fetch_header(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+    ValidatedJson(data): ValidatedJson<UpdateApiHeader>
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.update_header(user, id, data).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "Header updated!", response))
+}
+
+pub async fn delete_fetch_header(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.delete_header(user, id).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "Header deleted!", response))
+}
+
+pub async fn get_all_data(
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.get_all_data(user).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "List fetch data", response))
+}
+
+pub async fn create_fetch_data(
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+    ValidatedJson(data): ValidatedJson<ReqCreateApiData>,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.create_data(user, data).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::created(&uri, "Fetch data created!", response))
+}
+
+pub async fn get_fetch_data(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.get_data(user, id).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "Success!", response))
+}
+
+pub async fn update_fetch_data(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+    ValidatedJson(data): ValidatedJson<UpdateApiData>
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.update_data(user, id, data).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "Fetch data updated!", response))
+}
+
+pub async fn delete_fetch_data(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: FetchService,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.delete_data(user, id).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "Fetch data deleted!", response))
 }
