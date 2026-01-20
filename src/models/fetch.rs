@@ -33,6 +33,7 @@ pub struct Api {
     pub topic: Option<Value>,
     pub job_id: String,
     pub description: String,
+    pub payload: Option<String>,
     pub execute_id: i32,
     pub header_id: Option<i32>,
     pub is_active: bool,
@@ -47,6 +48,7 @@ pub struct CreateApi {
     pub topic: Option<Value>,
     pub job_id: String,
     pub description: String,
+    pub payload: Option<String>,
     pub execute_id: i32,
     pub header_id: Option<i32>,
     pub is_active: Option<bool>,
@@ -60,6 +62,7 @@ pub struct UpdateApi {
     pub topic: Option<Value>,
     pub job_id: Option<String>,
     pub description: Option<String>,
+    pub payload: Option<String>,
     pub execute_id: Option<i32>,
     pub header_id: Option<i32>,
     pub is_active: Option<bool>,
@@ -197,10 +200,8 @@ pub struct UpdateApiHeader {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ApiData {
     pub id: i32,
-    pub fetch_id: Option<i32>,
-    pub user_id: i32,
+    pub fetch_id: i32,
     pub name: String,
-    pub payload: String,
     pub status_code: i16,
     pub response: String,
     pub response_headers: Value,
@@ -210,19 +211,15 @@ pub struct ApiData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CreateApiData {
-    pub fetch_id: Option<i32>,
-    pub user_id: i32,
+    pub fetch_id: i32,
     pub name: String,
-    pub payload: Option<String>,
     pub status_code: Option<i16>,
     pub response: Option<String>,
     pub response_headers: Option<Value>,
 }
-
 // DTO payload data
 #[derive(Deserialize)]
 pub struct ReqCreateApiData {
-    pub fetch_id: Option<i32>,
     pub name: String,
     pub payload: Option<String>,
     pub status_code: Option<i16>,
@@ -230,23 +227,20 @@ pub struct ReqCreateApiData {
     pub response_headers: Option<Value>,
 }
 impl ReqCreateApiData {
-    pub fn into_model(self, user_id: i32) -> CreateApiData {
+    pub fn into_model(self, fetch_id: i32) -> CreateApiData {
         CreateApiData {
-            fetch_id: self.fetch_id,
-            user_id,
+            fetch_id,
             name: self.name,
-            payload: self.payload,
             status_code: self.status_code,
             response: self.response,
             response_headers: self.response_headers,
         }
     }
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UpdateApiData {
-    pub fetch_id: Option<i32>,
     pub name: Option<String>,
-    pub payload: Option<String>,
     pub status_code: Option<i16>,
     pub response: Option<String>,
     pub response_headers: Value,

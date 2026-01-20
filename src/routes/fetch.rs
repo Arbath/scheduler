@@ -19,6 +19,12 @@ pub fn routes() -> Router<AppState> {
         .route("/fetch/{fetch_id}/member/{id}", get(get_fetch_member))
         .route("/fetch/{fetch_id}/member/{id}", patch(update_fetch_member))
         .route("/fetch/{fetch_id}/member/{id}", delete(delete_fetch_member))
+        
+        .route("/fetch/{fetch_id}/data", post(create_fetch_data))
+        .route("/fetch/{fetch_id}/data", get(get_all_data))
+        .route("/fetch/{fetch_id}/data/{id}", get(get_fetch_data))
+        .route("/fetch/{fetch_id}/data/{id}", patch(update_fetch_data))
+        .route("/fetch/{fetch_id}/data/{id}", delete(delete_fetch_data))
 
         .route("/fetch/execute", get(get_all_execute))
         .route("/fetch/execute", post(create_fetch_execute))
@@ -32,9 +38,4 @@ pub fn routes() -> Router<AppState> {
         .route("/fetch/header/{id}", patch(update_fetch_header))
         .route("/fetch/header/{id}", delete(delete_fetch_header))
 
-        .route("/fetch/data", get(get_all_data))
-        .route("/fetch/data", post(create_fetch_data))
-        .route("/fetch/data/{id}", get(get_fetch_data))
-        .route("/fetch/data/{id}", patch(update_fetch_data))
-        .route("/fetch/data/{id}", delete(delete_fetch_data))
 }

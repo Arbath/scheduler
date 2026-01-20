@@ -101,10 +101,11 @@ CREATE TABLE IF NOT EXISTS fetch_api (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     type fetch_api_type NOT NULL DEFAULT 'rest',
-    method fetch_api_method DEFAULT 'get',
+    method fetch_api_method NOT NULL DEFAULT 'get',
     topic JSONB DEFAULT '{}'::jsonb,
     job_id TEXT NOT NULL UNIQUE,
     description TEXT,
+    payload TEXT,
 
     -- CONFIG RELATIONSHIPS
     execute_id INTEGER NOT NULL,
@@ -138,11 +139,9 @@ EXECUTE PROCEDURE update_updated_at_column();
 -- CREATE TABLE fetch_api_data
 CREATE TABLE IF NOT EXISTS fetch_api_data (
     id SERIAL PRIMARY KEY,
-    fetch_id INTEGER,
-    user_id INTEGER NOT NULL,
+    fetch_id INTEGER NOT NULL,
 
     name TEXT NOT NULL,
-    payload TEXT,
     
     -- RESPONSE
     status_code SMALLINT,
@@ -155,11 +154,6 @@ CREATE TABLE IF NOT EXISTS fetch_api_data (
     CONSTRAINT fk_fetch_api
         FOREIGN KEY (fetch_id)
         REFERENCES fetch_api(id)
-        ON DELETE CASCADE,
-    
-    CONSTRAINT fk_fetch_data_user
-        FOREIGN KEY (user_id)
-        REFERENCES users(id)
         ON DELETE CASCADE
 );
 

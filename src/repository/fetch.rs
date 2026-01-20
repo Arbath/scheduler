@@ -63,8 +63,8 @@ impl FetchRepository {
 
     pub async fn create(&self, data: CreateApi) -> Result<Api, sqlx::Error> {
         sqlx::query_as::<_,Api>(
-            r#"INSERT INTO fetch_api (name, type, method, topic, job_id, description, execute_id, header_id, is_active)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            r#"INSERT INTO fetch_api (name, type, method, topic, job_id, description, payload, execute_id, header_id, is_active, secure)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *
             "#
         )
@@ -74,9 +74,11 @@ impl FetchRepository {
         .bind(data.topic)
         .bind(data.job_id)
         .bind(data.description)
+        .bind(data.payload)
         .bind(data.execute_id)
         .bind(data.header_id)
         .bind(data.is_active)
+        .bind(data.secure)
         .fetch_one(&self.pool)
         .await
     }
@@ -92,11 +94,12 @@ impl FetchRepository {
                         topic       = COALESCE($4, topic),
                         job_id      = COALESCE($5, job_id),
                         description = COALESCE($6, description),
-                        execute_id  = COALESCE($7, execute_id),
-                        header_id   = COALESCE($8, header_id),
-                        is_active   = COALESCE($9, is_active),
-                        secure      = COALESCE($10, secure)
-                    WHERE id = $11
+                        payload     = COALESCE($7, payload),
+                        execute_id  = COALESCE($8, execute_id),
+                        header_id   = COALESCE($9, header_id),
+                        is_active   = COALESCE($10, is_active),
+                        secure      = COALESCE($11, secure)
+                    WHERE id = $12
                     RETURNING *
                 "#
         )
@@ -336,26 +339,24 @@ impl FetchDataRepository {
         .await
     }
 
-    pub async fn find_all(&self, user_id: i32) -> Result<Vec<ApiData>, sqlx::Error> {
+    pub async fn find_all(&self, fetch_id: i32) -> Result<Vec<ApiData>, sqlx::Error> {
         sqlx::query_as::<_,ApiData> (
-            r#"SELECT * FROM fetch_api_data WHERE user_id = $1"#
+            r#"SELECT * FROM fetch_api_data WHERE fetch_id = $1"#
         )
-        .bind(user_id)
+        .bind(fetch_id)
         .fetch_all(&self.pool)
         .await
     }
 
     pub async fn create(&self, data: CreateApiData) -> Result<ApiData, sqlx::Error>{
         sqlx::query_as::<_,ApiData> (
-            r#"INSERT INTO fetch_api_data (fetch_id, user_id, name, payload, status_code, response, response_headers)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            r#"INSERT INTO fetch_api_data (fetch_id, name, status_code, response, response_headers)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING *
             "#
         )
         .bind(data.fetch_id)
-        .bind(data.user_id)
         .bind(data.name)
-        .bind(data.payload)
         .bind(data.status_code)
         .bind(data.response)
         .bind(data.response_headers)
@@ -366,13 +367,11 @@ impl FetchDataRepository {
     pub async fn update(&self, id: i32, data: UpdateApiData) -> Result<ApiData, sqlx::Error>{
         sqlx::query_as::<_,ApiData> (
             r#"UPDATE fetch_api_data
-            SET fetch_id=$1, name=$2, payload=$3, status_code=$4, response=$5, response_headers=$6
-            WHERE id=$7 RETURNING *
+            SET name=$1, status_code=$2, response=$3, response_headers=$4
+            WHERE id=$6 RETURNING *
             "#
         )
-        .bind(data.fetch_id)
         .bind(data.name)
-        .bind(data.payload)
         .bind(data.status_code)
         .bind(data.response)
         .bind(data.response_headers)

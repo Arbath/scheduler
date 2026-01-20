@@ -344,36 +344,61 @@ impl FetchService {
     /// #Fetch Data Area
     
     /// get one
-    pub async fn get_data(&self, user: User, id: i32) -> Result<ApiData, AppError> {
-        let q = self.data_repo.find_by_id(id).await?;
-        if !user.is_superuser && q.user_id != user.id {
-            return Err(AppError::Forbidden("You don't have permission to access this data".to_string()));
+    pub async fn get_data(&self, user: User, fetch_id: i32, id: i32) -> Result<ApiData, AppError> {
+        if !user.is_superuser {
+            self.member_repo.find_member_id(fetch_id, user.id)
+            .await.map_err(|_|{AppError::Forbidden(format!("You don't have permission to access this data"))})?;
         }
 
-        Ok(q)
+        let data = self.data_repo.find_by_id(id).await?;
+
+        Ok(data)
     }
 
-    /// get all fetch data related with user
-    pub async fn get_all_data(&self, user: User) -> Result<Vec<ApiData>, AppError> {
-        let q = self.data_repo.find_all(user.id).await?;
+    /// get all fetch data related with fetch
+    pub async fn get_all_data(&self, user: User, fetch_id: i32) -> Result<Vec<ApiData>, AppError> {
+        if !user.is_superuser {
+             self.member_repo.find_member_id(fetch_id, user.id)
+            .await.map_err(|_|{AppError::Forbidden(format!("You don't have permission to access this data"))})?;
+        }
+
+        let q = self.data_repo.find_all(fetch_id).await?;
 
         Ok(q)
     }
 
     /// Create fetch data user
-    pub async fn create_data(&self, user: User, data: ReqCreateApiData) -> Result<ApiData, AppError> {
-        let model: CreateApiData = data.into_model(user.id);
+    pub async fn create_data(&self, user: User,fetch_id: i32, data: ReqCreateApiData) -> Result<ApiData, AppError> {
+        if !user.is_superuser {
+            let member = self.member_repo.find_member_id(fetch_id, user.id)
+                .await
+                .map_err(|_| AppError::Forbidden("You are not allowed to create this data!".to_string()))?;
+
+            if member.role == Some(Role::Viewer) {
+                return Err(AppError::Forbidden("Viewer not allowed to create fetch api data.".to_string()));
+            }
+        }
+        let model: CreateApiData = data.into_model(fetch_id);
         let q = self.data_repo.create(model).await?;
 
         Ok(q)
     }
 
     /// Update fetch data user
-    pub async fn update_data(&self, user: User, id: i32, data: UpdateApiData) -> Result<ApiData, AppError> {
-        let fetch_data = self.data_repo.find_by_id(id).await?;
+    pub async fn update_data(&self, user: User,fetch_id: i32, id: i32, data: UpdateApiData) -> Result<ApiData, AppError> {
+        let existing_data = self.data_repo.find_by_id(id).await?;
+        if existing_data.fetch_id != fetch_id { 
+            return Err(AppError::BadRequest("Data ID does not belong to this Fetch Project".to_string()));
+        }
 
-        if !user.is_superuser && fetch_data.user_id != user.id {
-            return Err(AppError::Forbidden("You don't have permission to update this data".to_string()));
+        if !user.is_superuser {
+            let member = self.member_repo.find_member_id(fetch_id, user.id)
+                .await
+                .map_err(|_| AppError::Forbidden("You are not allowed to update this data!".to_string()))?;
+
+            if member.role == Some(Role::Viewer) {
+                return Err(AppError::Forbidden("Viewer not allowed to update fetch api data.".to_string()));
+            }
         }
 
         let q = self.data_repo.update(id,data).await?;
@@ -382,11 +407,21 @@ impl FetchService {
     }
 
     /// Delete fetch data user
-    pub async fn delete_data(&self, user: User, id: i32) -> Result<ApiData, AppError> {
-        let fetch_data = self.data_repo.find_by_id(id).await?;
+    pub async fn delete_data(&self, user: User, fetch_id: i32, id: i32) -> Result<ApiData, AppError> {
+        let existing_data = self.data_repo.find_by_id(id).await?;
+        if existing_data.fetch_id != fetch_id { 
+            return Err(AppError::BadRequest("Data ID does not belong to this Fetch Project".to_string()));
+        }
 
-        if !user.is_superuser && fetch_data.user_id != user.id {
-            return Err(AppError::Forbidden("You don't have permission to delete this data".to_string()));
+        if !user.is_superuser {
+            let is_allowed = match self.member_repo.find_member_id(fetch_id, user.id).await {
+                Ok(member) => member.role == Some(Role::Owner),
+                Err(_) => false, 
+            };
+
+            if !is_allowed {
+                return Err(AppError::Forbidden("You don't have permission to add members!".to_string()));
+            }
         }
 
         let q = self.data_repo.delete(id).await?;
