@@ -30,14 +30,38 @@ impl FetchService {
         Ok(query)
     }
 
-    pub async fn get_fetch_by_id(&self, id: &i32) -> Result<Api, AppError> {
-        let query = self.fetch_repo.get_by_id(id)
+    pub async fn get_fetch_by_id(&self,user: User, id: i32) -> Result<Api, AppError> {
+        if !user.is_superuser {
+            let is_allowed = self.member_repo
+                .find_member_id(id, user.id)
+                .await
+                .is_ok();
+
+            if !is_allowed {
+                return Err(AppError::Forbidden("You are not a member of this project!".to_string()));
+            }
+        }
+        let query = self.fetch_repo.get_by_id(&id)
             .await.map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
 
         Ok(query)
     }
 
-    pub async fn get_fetch_by_job(&self, job_id: &str) -> Result<Api, AppError> {
+    pub async fn get_fetch_by_job(&self,user: User, job_id: &str) -> Result<Api, AppError> {
+        if !user.is_superuser {
+            let fetch = self.fetch_repo.find_by_job_id(job_id)
+                .await.map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
+
+            let is_allowed = self.member_repo
+                .find_member_id(fetch.id, user.id)
+                .await
+                .is_ok();
+
+            if !is_allowed {
+                return Err(AppError::Forbidden("You are not a member of this project!".to_string()));
+            }
+        }
+
         let query = self.fetch_repo.find_by_job_id(job_id)
             .await.map_err(|e| {AppError::NotFound(format!("Database: {}", e))})?;
 
