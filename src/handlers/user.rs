@@ -1,8 +1,9 @@
 use axum::{http::Uri,response::IntoResponse};
 use crate::middleware::auth::*;
+use crate::models::auth::{ReqCreateApiKey, ReqUpdateApiKey};
 use crate::utils::{response::*, requests::*};
 use crate::models::user::*;
-use crate::services::user::UserService;
+use crate::services::{user::UserService, auth::AuthService};
 
 pub async fn get_profile(
     uri: Uri,
@@ -70,4 +71,70 @@ pub async fn delete_user(
     service.delete_user(&user_id).await.map_err(|e|e.with_path(&uri))?;
 
     Ok(WebResponse::ok_empty(&uri, format!("User with id {user_id} has been daleted successfully!").as_str()))
+}
+
+pub async fn get_all_api_key(
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: AuthService,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.get_all_api_keys(user).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "List api keys", response))
+}
+
+pub async fn create_api_key(
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: AuthService,
+    ValidatedJson(data): ValidatedJson<ReqCreateApiKey>,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.create_api_key(user, data).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::created(&uri, "Api key created!", response))
+}
+
+pub async fn get_api_key(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: AuthService,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.get_api_key_by_id(user, id).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "Success!", response))
+}
+
+pub async fn update_api_key(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: AuthService,
+    ValidatedJson(data): ValidatedJson<ReqUpdateApiKey>
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.update_api_key(user, id, data).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::ok(&uri, "Api key updated!", response))
+}
+
+pub async fn delete_api_key(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: AuthService,
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.delete_api_key(user, id).await.map_err(|e|e.with_path(&uri))?;
+    
+    Ok(WebResponse::ok(&uri, "Api key deleted!", response))
+}
+
+pub async fn rotate_api_key(
+    ValidatedPath(id): ValidatedPath<i32>,
+    uri: Uri,
+    AuthUser(user): AuthUser,
+    service: AuthService
+) -> Result<impl IntoResponse, ApiError> {
+    let response = service.rotate_api_key(user, id).await.map_err(|e|e.with_path(&uri))?;
+
+    Ok(WebResponse::created(&uri, "Api key rotated!", response))
 }

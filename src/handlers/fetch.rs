@@ -54,10 +54,10 @@ pub async fn get_all(
 pub async fn get_fetch_job(
     ValidatedPath(job_id): ValidatedPath<String>,
     uri: Uri,
-    AuthUser(_): AuthUser,
+    AuthUser(user): AuthUser,
     service: FetchService,
 ) -> Result<impl IntoResponse, ApiError> {
-    let response = service.get_fetch_by_job(&job_id).await.map_err(|e|e.with_path(&uri))?;
+    let response = service.get_fetch_by_job(user, &job_id).await.map_err(|e|e.with_path(&uri))?;
 
     Ok(WebResponse::ok(&uri, "Success", response))
 }
@@ -65,10 +65,10 @@ pub async fn get_fetch_job(
 pub async fn get_fetch_api(
     ValidatedPath(id): ValidatedPath<i32>,
     uri: Uri,
-    AuthUser(_): AuthUser,
+    AuthUser(user): AuthUser,
     service: FetchService,
 ) -> Result<impl IntoResponse, ApiError> {
-    let response = service.get_fetch_by_id(&id).await.map_err(|e|e.with_path(&uri))?;
+    let response = service.get_fetch_by_id(user, id).await.map_err(|e|e.with_path(&uri))?;
 
     Ok(WebResponse::ok(&uri, "Success", response))
 }

@@ -1,5 +1,7 @@
 use jsonwebtoken::{encode, EncodingKey, Header, decode, DecodingKey, Validation, Algorithm};
 use chrono::{Duration, Utc};
+use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
 use crate::models::auth::Claims;
 use crate::models::user::User;
 use crate::utils::response::AppError;
@@ -68,4 +70,14 @@ pub fn verify_refresh_token(jwt_secret: &str, token: &str) -> Result<Claims, App
     ).map_err(|_| AppError::AuthError("Invalid or expired refresh token".to_string()))?;
 
     Ok(token_data.claims)
+}
+
+pub fn generate_api_key() -> String {
+    let random_string: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(32)
+        .map(char::from)
+        .collect();
+
+    format!("teknohole_{}", random_string)
 }

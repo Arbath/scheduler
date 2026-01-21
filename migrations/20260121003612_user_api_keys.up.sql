@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS user_api_keys (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    descriptions TEXT,
+    description TEXT,
     key TEXT NOT NULL UNIQUE,
     expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
