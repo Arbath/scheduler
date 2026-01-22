@@ -63,16 +63,16 @@ impl FetchRepository {
 
     pub async fn create(&self, data: CreateApi) -> Result<Api, sqlx::Error> {
         sqlx::query_as::<_,Api>(
-            r#"INSERT INTO fetch_api (name, type, method, topic, job_id, description, payload, execute_id, header_id, is_active, secure)
+            r#"INSERT INTO fetch_api (name, type, endpoint, method, topic, description, payload, execute_id, header_id, is_active, secure)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *
             "#
         )
         .bind(data.name)
         .bind(data.r#type)
+        .bind(data.endpoint)
         .bind(data.method)
         .bind(data.topic)
-        .bind(data.job_id)
         .bind(data.description)
         .bind(data.payload)
         .bind(data.execute_id)
@@ -82,6 +82,16 @@ impl FetchRepository {
         .fetch_one(&self.pool)
         .await
     }
+
+    pub async fn update_job_id(&self,id: i32, job_id: String) -> Result<Api, sqlx::Error> {
+        sqlx::query_as::<_,Api>(
+            r#"UPDATE fetch_api SET job_id=$2 WHERE id =$1 RETURNING *"#
+        )
+        .bind(id)
+        .bind(job_id)
+        .fetch_one(&self.pool)
+        .await
+    } 
     
     pub async fn update(&self,id: &i32, data: UpdateApi) -> Result<Api, sqlx::Error> {
         sqlx::query_as::<_,Api>(
@@ -90,9 +100,9 @@ impl FetchRepository {
                     SET
                         name        = COALESCE($1, name),
                         type        = COALESCE($2, type),
-                        method      = COALESCE($3, method),
-                        topic       = COALESCE($4, topic),
-                        job_id      = COALESCE($5, job_id),
+                        endpoint    = COALESCE($3, endpoint),
+                        method      = COALESCE($4, method),
+                        topic       = COALESCE($5, topic),
                         description = COALESCE($6, description),
                         payload     = COALESCE($7, payload),
                         execute_id  = COALESCE($8, execute_id),
@@ -105,9 +115,9 @@ impl FetchRepository {
         )
         .bind(data.name)
         .bind(data.r#type)
+        .bind(data.endpoint)
         .bind(data.method)
         .bind(data.topic)
-        .bind(data.job_id)
         .bind(data.description)
         .bind(data.execute_id)
         .bind(data.header_id)

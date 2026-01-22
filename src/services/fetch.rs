@@ -1,5 +1,7 @@
+use apalis::prelude::Storage;
 use axum::{extract::{FromRef, FromRequestParts}, http::request::Parts};
-use crate::{models::{fetch::{Api, ApiData, ApiExecute, ApiHeader, ApiMembers, CreateApi, CreateApiData, CreateApiExecute, CreateApiHeader, CreateApiMembers, ReqCreateApiData, ReqCreateApiExecute, ReqCreateApiHeader, Role, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers}, user::User}, repository::fetch::{FetchDataRepository, FetchExecuteRepository, FetchHeaderRepository, FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
+use chrono::{Utc, Duration};
+use crate::{models::{fetch::{Api, ApiData, ApiExecute, ApiHeader, ApiMembers, CreateApiData, CreateApiExecute, CreateApiHeader, CreateApiMembers, ExecuteType, ReqCreateApi, ReqCreateApiData, ReqCreateApiExecute, ReqCreateApiHeader, Role, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers}, user::User}, repository::fetch::{FetchDataRepository, FetchExecuteRepository, FetchHeaderRepository, FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
 
 #[allow(dead_code)]
 pub struct FetchService {
@@ -19,6 +21,27 @@ impl FetchService {
         let header_repo = FetchHeaderRepository::new(state.database.clone());
         let data_repo = FetchDataRepository::new(state.database.clone());
         Self {fetch_repo, member_repo, execute_repo, header_repo, data_repo, state}
+    }
+
+    // Create apalis job
+    pub async fn create_apalis_job(&self, fetch: &Api, execute: ApiExecute) -> Result<String, AppError> {
+        let duration = match execute.r#type {
+            Some(ExecuteType::Seconds) => Duration::seconds(execute.value),
+            Some(ExecuteType::Minutes) => Duration::minutes(execute.value),
+            Some(ExecuteType::Hours)   => Duration::hours(execute.value),
+            Some(ExecuteType::Days)    => Duration::days(execute.value),
+            None                       => Duration::minutes(execute.value),
+        };
+        let run_at = (Utc::now() + duration).timestamp();
+
+        let apalis = self.state.job_queue.clone()
+                .schedule(fetch.clone(), run_at)
+                .await
+                .map_err(|e| {
+                    tracing::error!("Failed to enqueue apalis job: {e}");
+                    AppError::InternalError("Failed to create scheduler!".to_string())})?;
+
+        Ok(apalis.task_id.to_string())
     }
 
     /// #API AREA
@@ -74,8 +97,9 @@ impl FetchService {
         Ok(query)
     }
     
-    pub async fn create_fetch(&self, data: CreateApi, user: User) -> Result<Api, AppError> {
-        let fetch = self.fetch_repo.create(data)
+    pub async fn create_fetch(&self, data: ReqCreateApi, user: User) -> Result<Api, AppError> {
+        let model = data.into_model();
+        let fetch = self.fetch_repo.create(model)
             .await
             .map_err(|e|{
                 if let Some(db_error) = e.as_database_error() {
@@ -100,7 +124,11 @@ impl FetchService {
         let _ = self.member_repo.create(fetch.id,add_member)
             .await?;
 
-        Ok(fetch)
+        let execute = self.execute_repo.find_by_id(fetch.execute_id).await?;
+        let job_id = self.create_apalis_job(&fetch, execute).await?;
+        let updated_fetch = self.fetch_repo.update_job_id(fetch.id, job_id).await?;
+
+        Ok(updated_fetch)
     }
 
     /// Update fetch viewer not allowed

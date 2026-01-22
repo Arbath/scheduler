@@ -1,45 +1,8 @@
-use axum::{Json, extract::State, http::Uri, response::IntoResponse};
-use serde::{Deserialize, Serialize};
+use axum::{http::Uri, response::IntoResponse};
 use crate::middleware::auth::{AuthUser}; 
 use crate::services::fetch::FetchService;
-use crate::state::AppState;
 use crate::utils::{requests::{ValidatedJson, ValidatedPath}, response::{ApiError, WebResponse}};
-use crate::models::fetch::{CreateApi, CreateApiMembers, ReqCreateApiData, ReqCreateApiExecute, ReqCreateApiHeader, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers};
-
-#[derive(Deserialize, Serialize)]
-struct Todo {
-    #[serde(rename = "userId")]
-    user_id: i32,
-    id: i32,
-    title: String,
-    completed: bool,
-}
-
-pub async fn fetch_external_api(
-    State(state): State<AppState>, 
-) -> Json<serde_json::Value> {
-    let url = "https://jsonplaceholder.typicode.com/todos/1";
-
-    // Gunakan client yang sudah ada di state
-    // .send() dan .json() bersifat async (non-blocking)
-    let response = state.http_client
-        .get(url)
-        .send()
-        .await;
-
-    println!("INI RESPONSENYA {:?}", response);
-
-    match response {
-        Ok(resp) => {
-            // Parse JSON langsung ke struct atau Value
-            match resp.json::<Todo>().await {
-                Ok(data) => Json(serde_json::json!({ "status": "success", "data": data })),
-                Err(_) => Json(serde_json::json!({ "status": "error", "message": "Gagal parse JSON" })),
-            }
-        }
-        Err(_) => Json(serde_json::json!({ "status": "error", "message": "Request gagal" })),
-    }
-}
+use crate::models::fetch::{CreateApiMembers, ReqCreateApi, ReqCreateApiData, ReqCreateApiExecute, ReqCreateApiHeader, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers};
 
 pub async fn get_all(
     uri: Uri,
@@ -77,7 +40,7 @@ pub async fn create_fetch_api(
     uri: Uri,
     AuthUser(user): AuthUser,
     service: FetchService,
-    ValidatedJson(data): ValidatedJson<CreateApi>
+    ValidatedJson(data): ValidatedJson<ReqCreateApi>
 ) -> Result<impl IntoResponse, ApiError> {
     let response = service.create_fetch(data, user).await.map_err(|e|e.with_path(&uri))?;
 

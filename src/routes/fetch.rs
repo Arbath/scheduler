@@ -5,7 +5,6 @@ use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/fetch/test", get(fetch_external_api))
         .route("/fetch", get(get_all))
         .route("/fetch", post(create_fetch_api))
         .route("/fetch/{id}", get(get_fetch_api))

@@ -101,9 +101,10 @@ CREATE TABLE IF NOT EXISTS fetch_api (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     type fetch_api_type NOT NULL DEFAULT 'rest',
+    endpoint TEXT,
     method fetch_api_method NOT NULL DEFAULT 'get',
     topic JSONB DEFAULT '{}'::jsonb,
-    job_id TEXT NOT NULL UNIQUE,
+    job_id TEXT UNIQUE,
     description TEXT,
     payload TEXT,
 

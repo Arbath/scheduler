@@ -1,8 +1,7 @@
 use apalis_sql::postgres::PostgresStorage;
 use sqlx::PgPool;
 use std::sync::Arc;
-
-use crate::jobs::email_jobs::EmailJob;
+use crate::models::fetch::Api;
 
 #[derive(Clone)]
 pub struct JwtConfig {
@@ -16,5 +15,5 @@ pub struct AppState {
     pub jwt_config: Arc<JwtConfig>, 
     pub database: PgPool,
     pub http_client: reqwest::Client,
-    pub email_job_queue: PostgresStorage<EmailJob>,
+    pub job_queue: PostgresStorage<Api>,
 }

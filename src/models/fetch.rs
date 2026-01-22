@@ -29,9 +29,10 @@ pub struct Api {
     pub id: i32,
     pub name: String,
     pub r#type: ApiType,
+    pub endpoint: String,
     pub method: Option<ApiMethod>,
     pub topic: Option<Value>,
-    pub job_id: String,
+    pub job_id: Option<String>,
     pub description: String,
     pub payload: Option<String>,
     pub execute_id: i32,
@@ -44,9 +45,9 @@ pub struct Api {
 pub struct CreateApi {
     pub name: String,
     pub r#type: Option<ApiType>,
+    pub endpoint: String,
     pub method: Option<ApiMethod>,
     pub topic: Option<Value>,
-    pub job_id: String,
     pub description: String,
     pub payload: Option<String>,
     pub execute_id: i32,
@@ -54,13 +55,58 @@ pub struct CreateApi {
     pub is_active: Option<bool>,
     pub secure: Option<bool>,
 }
+#[derive(Deserialize)]
+pub struct ReqCreateApi {
+    pub name: String,
+    pub r#type: Option<ApiType>,
+    pub endpoint: String,
+    pub method: Option<ApiMethod>,
+    pub topic: Option<Value>,
+    pub description: String,
+    pub payload: Option<Value>,
+    pub execute_id: i32,
+    pub header_id: Option<i32>,
+    pub is_active: Option<bool>,
+    pub secure: Option<bool>,
+}
+impl ReqCreateApi {
+    pub fn into_model(self) -> CreateApi {
+        // Value -> String
+        let payload_string = match self.payload {
+            Some(val) => {
+                if let Some(s) = val.as_str() {
+                    Some(s.to_string())
+                } 
+                else {
+                    Some(val.to_string())
+                }
+            },
+            None => None,
+        };
+
+        CreateApi {
+            name: self.name,
+            r#type: self.r#type,
+            endpoint: self.endpoint,
+            method: self.method,
+            topic: self.topic,
+            description: self.description,
+            payload: payload_string, 
+            execute_id: self.execute_id,
+            header_id: self.header_id,
+            is_active: self.is_active,
+            secure: self.secure,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct UpdateApi {
     pub name: Option<String>,
     pub r#type: Option<ApiType>,
+    pub endpoint: Option<String>,
     pub method: Option<ApiMethod>,
     pub topic: Option<Value>,
-    pub job_id: Option<String>,
     pub description: Option<String>,
     pub payload: Option<String>,
     pub execute_id: Option<i32>,

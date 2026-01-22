@@ -1,24 +1,19 @@
-
 use apalis::prelude::*;
-use apalis_sql::{postgres::PostgresStorage};
-use sqlx::PgPool;
-use crate::jobs::email_jobs::{EmailJob, execute_email_job};
+use crate::state::AppState;
+use crate::jobs::rest::execute_job;
 
-pub async fn setup_background_workers(
-    pool: PgPool,
-    email_storage: PostgresStorage<EmailJob>,
-) {
+pub async fn setup_background_workers(state: AppState,) {
     tokio::spawn(async move {
         Monitor::new()
             .register(
-                WorkerBuilder::new("email-scheduler")
+                WorkerBuilder::new("teknohole-scheduler")
                     .concurrency(2)
-                    .data(pool)
-                    .backend(email_storage)
-                    .build_fn(execute_email_job),
+                    .data(state.clone())
+                    .backend(state.job_queue.clone())
+                    .build_fn(execute_job),
             )
             .run()
             .await
-            .expect("Email worker crashed");
+            .expect("Scheduler worker crashed");
     });
 }

@@ -1,11 +1,7 @@
 use axum::serve;
 use dotenvy::dotenv;
 use scheduler::{
-    config::*,
-    create_app,
-    state::{AppState, JwtConfig},
-    db::{postgres, postgres::{migrate_app, create_root_user}},
-    jobs::{email_jobs::EmailJob, workers::setup_background_workers}
+    config::*, create_app, db::postgres::{self, create_root_user, migrate_app}, jobs::{cleaner::start_job_cleaner, workers::setup_background_workers}, models::fetch::Api, state::{AppState, JwtConfig}
 };
 use std::sync::Arc;
 use apalis_sql::postgres::PostgresStorage;
@@ -38,25 +34,31 @@ async fn main() {
     let apalis_config = apalis_sql::Config::default()
         .set_poll_interval(std::time::Duration::from_secs(config.min_job_interval));
 
-    let email_storage =
-        PostgresStorage::<EmailJob>::new_with_config(pool.clone(), apalis_config);
+    let scheduler_storage =
+        PostgresStorage::<Api>::new_with_config(pool.clone(), apalis_config);
 
-    setup_background_workers(pool.clone(),email_storage.clone()).await;
-
-    let http_client = reqwest::Client::builder()
+        
+        let http_client = reqwest::Client::builder()
         .user_agent("Teknohole/1.0")
         .timeout(std::time::Duration::from_secs(10)) 
         .pool_idle_timeout(std::time::Duration::from_secs(90))
         .pool_max_idle_per_host(10)
         .build()
         .unwrap();
-
+    
     let state = AppState {
         jwt_config: Arc::new(jwt_config),
         database: pool,
         http_client: http_client,
-        email_job_queue: email_storage.clone(),
+        job_queue: scheduler_storage,
     };
+
+    // Worker apalis
+    setup_background_workers(state.clone()).await;
+    let pool_for_cleaner = state.database.clone();
+    tokio::spawn(async move {
+        start_job_cleaner(pool_for_cleaner).await;
+    });
     
     let addr = format!("0.0.0.0:{}", port);
     let app = create_app(state);
