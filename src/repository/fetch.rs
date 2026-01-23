@@ -119,6 +119,7 @@ impl FetchRepository {
         .bind(data.method)
         .bind(data.topic)
         .bind(data.description)
+        .bind(data.payload)
         .bind(data.execute_id)
         .bind(data.header_id)
         .bind(data.is_active)

@@ -9,7 +9,7 @@ use crate::state::AppState;
 
 pub async fn gen_access_token(user: &User, state: &AppState) -> Result<String, AppError> {
     let now = Utc::now();
-    let access_duration = Duration::seconds(state.jwt_config.access_ttl);
+    let access_duration = Duration::seconds(state.app_config.access_ttl);
     let access_expires_at = now + access_duration;
     let claims = Claims {
         sub: user.id.to_string(),
@@ -21,14 +21,14 @@ pub async fn gen_access_token(user: &User, state: &AppState) -> Result<String, A
 
     let access_token = encode(
         &Header::default(),&claims,
-        &EncodingKey::from_secret(state.jwt_config.secret.as_bytes())
+        &EncodingKey::from_secret(state.app_config.secret.as_bytes())
     ).map_err(|e| AppError::InternalError(e.to_string()))?;
 
     Ok(access_token)
 }
 pub async fn gen_refresh_token(user: &User, state: &AppState) -> Result<String, AppError> {
     let now = Utc::now();
-    let refresh_duration = Duration::seconds(state.jwt_config.refresh_ttl);
+    let refresh_duration = Duration::seconds(state.app_config.refresh_ttl);
     let refresh_expires_at = now + refresh_duration;
     let claims = Claims {
         sub: user.id.to_string(),
@@ -40,7 +40,7 @@ pub async fn gen_refresh_token(user: &User, state: &AppState) -> Result<String, 
     let refresh_token = encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(state.jwt_config.secret.as_bytes())
+        &EncodingKey::from_secret(state.app_config.secret.as_bytes())
     ).map_err(|e| AppError::InternalError(e.to_string()))?;
 
     Ok(refresh_token)

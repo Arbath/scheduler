@@ -2,22 +2,35 @@ use apalis::prelude::*;
 use apalis_sql::context::SqlContext;
 use reqwest::Method;
 use serde_json::{Map, Value};
-use crate::{models::fetch::{Api, ApiMethod, CreateApiData}, repository::fetch::{FetchDataRepository, FetchHeaderRepository, FetchRepository}, state::AppState, utils::reqwest::json_to_headermap};
+use crate::{models::fetch::{Api, ApiMethod, CreateApiData}, repository::fetch::{FetchDataRepository, FetchExecuteRepository, FetchHeaderRepository, FetchRepository}, services::fetch::FetchService, state::AppState, utils::reqwest::json_to_headermap};
 
 pub async fn execute_job(
     job: Api,
     mut ctx: SqlContext,
     state: Data<AppState>,
 ) -> Result<(), anyhow::Error> {
+    ctx.set_max_attempts(10);
+    let execute_repo = FetchExecuteRepository::new(state.database.clone());
     let fetch_repo = FetchRepository::new(state.database.clone());
     let header_repo = FetchHeaderRepository::new(state.database.clone());
     let data_repo = FetchDataRepository::new(state.database.clone());
+    let fetch_service = FetchService::new((*state).clone());
 
     let fetch_api = fetch_repo.get_by_id(&job.id).await?;
-    let header_id = fetch_api.header_id.unwrap_or_default();
-    let headers_data = header_repo.find_by_id(header_id).await?;
+
+    let headers_json = if let Some(h_id) = fetch_api.header_id {
+        match header_repo.find_by_id(h_id).await {
+            Ok(data) => Some(data.headers),
+            Err(e) => {
+                tracing::warn!("Header ID {} not found: {:?}. Default.", h_id, e);
+                None
+            }
+        }
+    } else {
+        None
+    };
     
-    let headers_map = json_to_headermap(Some(headers_data.headers)).await; 
+    let headers_map = json_to_headermap(headers_json).await; 
 
     let req_method = match fetch_api.method {
         Some(ApiMethod::Get) => Method::GET,
@@ -33,9 +46,9 @@ pub async fn execute_job(
         .request(req_method, &fetch_api.endpoint)
         .headers(headers_map);
 
-    if let Some(payload) = fetch_api.payload {
+    if let Some(payload) = &fetch_api.payload {
         if !payload.is_empty() {
-             request_builder = request_builder.body(payload);
+             request_builder = request_builder.body(payload.clone());
         }
     }
 
@@ -71,8 +84,12 @@ pub async fn execute_job(
 
     tracing::info!("Done request to {}. [{}]", fetch_api.endpoint, status_obj,);
 
-    let max_attempts = 10;
-    ctx.set_max_attempts(max_attempts);
+    // Create repeatable jobs
+    let execute = execute_repo.find_by_id(fetch_api.execute_id).await?;
+    if execute.is_repeat {
+        let _ = fetch_service.create_apalis_job(&fetch_api, execute)
+            .await.map_err(|e| anyhow::anyhow!("Failed to create repeatable jobs: {:?}", e))?;
+    }
 
     Ok(())
 }

@@ -70,7 +70,7 @@ async fn fetch_user_from_request(parts: &Parts, state: &AppState) -> Result<User
 
         let token = &auth_str[7..];
 
-        let claims = verify_access_token(&state.jwt_config.secret, token)
+        let claims = verify_access_token(&state.app_config.secret, token)
             .map_err(|_| AppError::AuthError("Invalid or expired token".to_string()))?;
 
         claims.sub.parse::<i32>()

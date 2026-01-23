@@ -163,8 +163,11 @@ impl FetchService {
                 }
                 AppError::BadRequest(format!("Database: {}", e))
             })?;
+        let execute = self.execute_repo.find_by_id(query.execute_id).await?;
+        let job_id = self.create_apalis_job(&query, execute).await?;
+        let updated_fetch = self.fetch_repo.update_job_id(query.id, job_id).await?;
 
-        Ok(query)
+        Ok(updated_fetch)
     }
     
     /// delete fetch api

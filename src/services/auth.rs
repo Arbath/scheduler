@@ -27,7 +27,7 @@ impl AuthService {
     
     pub async fn login(&self, req: LoginReq) -> Result<LoginRes, AppError> {
         let user = self.authenticate(&req.identifier, &req.password).await?;
-        let expiration_time = Utc::now() + Duration::seconds(self.state.jwt_config.refresh_ttl); 
+        let expiration_time = Utc::now() + Duration::seconds(self.state.app_config.refresh_ttl); 
         let access_token = gen_access_token(&user, &self.state).await?;
         let refresh_token = gen_refresh_token(&user, &self.state).await?;
         self.token_repo.save_token(&refresh_token, user.id, expiration_time).await?;
@@ -36,7 +36,7 @@ impl AuthService {
     }
 
     pub async fn logout(&self, refresh_token_str: String) -> Result<(), AppError> {
-        let _ = verify_refresh_token(&self.state.jwt_config.secret, &refresh_token_str)
+        let _ = verify_refresh_token(&self.state.app_config.secret, &refresh_token_str)
              .map_err(|_| AppError::AuthError("Invalid token".to_string()))?;
 
         self.token_repo.revoke(&refresh_token_str).await?;
@@ -45,7 +45,7 @@ impl AuthService {
     }
 
     pub async fn refresh(&self, token_str: String) -> Result<LoginRes, AppError> {
-        let claims = verify_refresh_token(&self.state.jwt_config.secret, &token_str)?;
+        let claims = verify_refresh_token(&self.state.app_config.secret, &token_str)?;
         let exists = self.token_repo.exists(&token_str)
         .await
         .map_err(|e| AppError::InternalError(e.to_string()))?;
@@ -58,7 +58,7 @@ impl AuthService {
             .map_err(|_| AppError::AuthError("Invalid ID format".to_string()))?;
 
         let user = self.user_repo.find_by_id(&user_id).await?;
-        let expiration_time = Utc::now() + Duration::seconds(self.state.jwt_config.refresh_ttl); 
+        let expiration_time = Utc::now() + Duration::seconds(self.state.app_config.refresh_ttl); 
         let access_token = gen_access_token(&user, &self.state).await?;
         let refresh_token = gen_refresh_token(&user, &self.state).await?;
         self.token_repo.revoke(&token_str).await?;
