@@ -1,6 +1,7 @@
 use apalis::prelude::Storage;
 use axum::{extract::{FromRef, FromRequestParts}, http::request::Parts};
 use chrono::{Utc, Duration};
+use tracing::{warn,info};
 use crate::{models::{fetch::{Api, ApiData, ApiExecute, ApiHeader, ApiMembers, CreateApiData, CreateApiExecute, CreateApiHeader, CreateApiMembers, ExecuteType, ReqCreateApi, ReqCreateApiData, ReqCreateApiExecute, ReqCreateApiHeader, Role, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers}, user::User}, repository::fetch::{FetchDataRepository, FetchExecuteRepository, FetchHeaderRepository, FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
 
 #[allow(dead_code)]
@@ -163,6 +164,12 @@ impl FetchService {
                 }
                 AppError::BadRequest(format!("Database: {}", e))
             })?;
+        
+        if let Some(j_id) = &query.job_id {
+            if let Err(e) = self.fetch_repo.delete_apalis_job(j_id).await {
+                warn!("Failed delete apalis job {}, continue to next step\n error: {}", j_id, e);
+            }
+        }
         let execute = self.execute_repo.find_by_id(query.execute_id).await?;
         let job_id = self.create_apalis_job(&query, execute).await?;
         let updated_fetch = self.fetch_repo.update_job_id(query.id, job_id).await?;
@@ -171,24 +178,31 @@ impl FetchService {
     }
     
     /// delete fetch api
-    pub async fn delete_fetch(&self,id: i32, user: User) -> Result<Api, AppError> {
-        if user.is_superuser {
-            let query = self.fetch_repo.delete(id).await?;
-            return Ok(query);
-        }
-        let member = self.member_repo.find_member_id(id, user.id)
-            .await
-            .map_err(|_| AppError::Forbidden("Access denied".to_string()))?;
+    pub async fn delete_fetch(&self, id: i32, user: User) -> Result<Api, AppError> {
+        let fetch = self.fetch_repo.get_by_id(&id).await?;
 
-        if member.role != Some(Role::Owner) {
-            return Err(AppError::Forbidden("Only owner allowed to delete fetch api.".to_string()));
+        if !user.is_superuser {
+            let member = self.member_repo.find_member_id(id, user.id)
+                .await
+                .map_err(|_| AppError::Forbidden("Access denied".to_string()))?;
+
+            if member.role != Some(Role::Owner) {
+                return Err(AppError::Forbidden("Only owner allowed to delete fetch api.".to_string()));
+            }
+        }
+
+        if let Some(j_id) = &fetch.job_id {
+            if let Err(e) = self.fetch_repo.delete_apalis_job(j_id).await {
+                warn!("Failed delete apalis job {}, continue to next step\n error: {}", j_id, e);
+            } else {
+                info!("Successfully deleted apalis job {}", j_id);
+            }
         }
 
         let query = self.fetch_repo.delete(id).await?;
         
         Ok(query)
     }
-
     /// # MEMBER AREA
     
     /// Find member by id

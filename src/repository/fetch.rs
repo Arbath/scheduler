@@ -140,6 +140,20 @@ impl FetchRepository {
         .bind(id)
         .fetch_one(&self.pool)
         .await
+    }   
+
+    pub async fn delete_apalis_job(&self, job_id: &String) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+            DELETE FROM apalis.jobs
+            WHERE id = $1
+            "#
+        )
+        .bind(job_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }    
 }
 
