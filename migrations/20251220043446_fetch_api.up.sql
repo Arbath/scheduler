@@ -1,63 +1,36 @@
 -- Add up migration script here
 -- CREATE ENUM TYPE
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_type WHERE typname = 'fetch_api_type'
-    ) THEN
-        CREATE TYPE fetch_api_type AS ENUM (
-            'rest',
-            'websocket',
-            'mqtt',
-            'graphql'
-        );
-    END IF;
-END $$;
+CREATE TYPE fetch_api_type AS ENUM (
+    'rest',
+    'websocket',
+    'mqtt',
+    'graphql'
+);
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_type WHERE typname = 'fetch_api_method'
-    ) THEN
-        CREATE TYPE fetch_api_method AS ENUM (
-            'get',
-            'post',
-            'put',
-            'patch',
-            'delete'
-        );
-    END IF;
-END $$;
+CREATE TYPE fetch_api_method AS ENUM (
+    'get',
+    'post',
+    'put',
+    'patch',
+    'delete'
+);
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_type WHERE typname = 'execute_type'
-    ) THEN
-        CREATE TYPE execute_type AS ENUM (
-            'seconds',
-            'minutes',
-            'hours',
-            'days'
-        );
-    END IF;
-END $$;
+CREATE TYPE execute_type AS ENUM (
+    'seconds',
+    'minutes',
+    'hours',
+    'days'
+);
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_type WHERE typname = 'fetch_member_role'
-    ) THEN
-        CREATE TYPE fetch_member_role AS ENUM (
-            'owner',
-            'editor',
-            'viewer'
-        );
-    END IF;
-END $$;
+CREATE TYPE fetch_member_role AS ENUM (
+    'owner',
+    'editor',
+    'viewer'
+);
+
 
 -- CREATE TABLE fetch_api_execute
-CREATE TABLE IF NOT EXISTS fetch_api_execute (
+CREATE TABLE fetch_api_execute (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -71,14 +44,14 @@ CREATE TABLE IF NOT EXISTS fetch_api_execute (
         REFERENCES users(id)
         ON DELETE CASCADE
 );
-DROP TRIGGER IF EXISTS set_timestamp ON fetch_api_execute;
-CREATE TRIGGER set_timestamp
+
+CREATE TRIGGER trg_set_timestamp_execute
 BEFORE UPDATE ON fetch_api_execute
 FOR EACH ROW
 EXECUTE PROCEDURE update_updated_at_column();
 
 -- CREATE TABLE fetch_api_header
-CREATE TABLE IF NOT EXISTS fetch_api_header (
+CREATE TABLE fetch_api_header (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -90,14 +63,14 @@ CREATE TABLE IF NOT EXISTS fetch_api_header (
         REFERENCES users(id)
         ON DELETE CASCADE
 );
-DROP TRIGGER IF EXISTS set_timestamp ON fetch_api_header;
-CREATE TRIGGER set_timestamp
+
+CREATE TRIGGER trg_set_timestamp_header
 BEFORE UPDATE ON fetch_api_header
 FOR EACH ROW
 EXECUTE PROCEDURE update_updated_at_column();
 
 -- CREATE TABLE fetch_api
-CREATE TABLE IF NOT EXISTS fetch_api (
+CREATE TABLE fetch_api (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     type fetch_api_type NOT NULL DEFAULT 'rest',
@@ -113,7 +86,6 @@ CREATE TABLE IF NOT EXISTS fetch_api (
     header_id INTEGER,
     
     is_active BOOLEAN NOT NULL DEFAULT false,
-    secure BOOLEAN NOT NULL DEFAULT false,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT fk_fetch_execute
@@ -128,17 +100,17 @@ CREATE TABLE IF NOT EXISTS fetch_api (
 );
 
 -- INDEX
-CREATE INDEX IF NOT EXISTS idx_fetch_api_execute_id ON fetch_api(execute_id);
-CREATE INDEX IF NOT EXISTS idx_fetch_api_header_id ON fetch_api(header_id);
+CREATE INDEX idx_fetch_api_execute_id ON fetch_api(execute_id);
+CREATE INDEX idx_fetch_api_header_id ON fetch_api(header_id);
 
-DROP TRIGGER IF EXISTS set_timestamp ON fetch_api;
-CREATE TRIGGER set_timestamp
+
+CREATE TRIGGER trg_set_timestamp_fetch
 BEFORE UPDATE ON fetch_api
 FOR EACH ROW
 EXECUTE PROCEDURE update_updated_at_column();
 
 -- CREATE TABLE fetch_api_data
-CREATE TABLE IF NOT EXISTS fetch_api_data (
+CREATE TABLE fetch_api_data (
     id SERIAL PRIMARY KEY,
     fetch_id INTEGER NOT NULL,
 
@@ -158,10 +130,10 @@ CREATE TABLE IF NOT EXISTS fetch_api_data (
         ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_fetch_api_data_fetch_id ON fetch_api_data(fetch_id);
+CREATE INDEX idx_fetch_api_data_fetch_id ON fetch_api_data(fetch_id);
 
-DROP TRIGGER IF EXISTS set_timestamp ON fetch_api_data;
-CREATE TRIGGER set_timestamp
+
+CREATE TRIGGER trg_set_timestamp_data
 BEFORE UPDATE ON fetch_api_data
 FOR EACH ROW
 EXECUTE PROCEDURE update_updated_at_column();
