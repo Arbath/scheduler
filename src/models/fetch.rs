@@ -38,7 +38,6 @@ pub struct Api {
     pub execute_id: i32,
     pub header_id: Option<i32>,
     pub is_active: bool,
-    pub secure: bool,
     pub updated_at: DateTime<Utc>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -53,7 +52,6 @@ pub struct CreateApi {
     pub execute_id: i32,
     pub header_id: Option<i32>,
     pub is_active: Option<bool>,
-    pub secure: Option<bool>,
 }
 #[derive(Deserialize)]
 pub struct ReqCreateApi {
@@ -67,7 +65,6 @@ pub struct ReqCreateApi {
     pub execute_id: i32,
     pub header_id: Option<i32>,
     pub is_active: Option<bool>,
-    pub secure: Option<bool>,
 }
 impl ReqCreateApi {
     pub fn into_model(self) -> CreateApi {
@@ -94,8 +91,7 @@ impl ReqCreateApi {
             payload: payload_string, 
             execute_id: self.execute_id,
             header_id: self.header_id,
-            is_active: self.is_active,
-            secure: self.secure,
+            is_active: self.is_active
         }
     }
 }
@@ -112,7 +108,6 @@ pub struct UpdateApi {
     pub execute_id: Option<i32>,
     pub header_id: Option<i32>,
     pub is_active: Option<bool>,
-    pub secure: Option<bool>,
 }
 
 // Struct for table fetch_api_members
@@ -253,6 +248,38 @@ pub struct ApiData {
     pub response_headers: Value,
     pub updated_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ApiDataResponse {
+    pub id: i32,
+    pub fetch_id: i32,
+    pub name: String,
+    pub status_code: i16,
+    pub response: Value, 
+    pub response_headers: Value,
+    pub updated_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+}
+// Helper Text DB Model to json response 
+impl From<ApiData> for ApiDataResponse {
+    fn from(data: ApiData) -> Self {
+        let parsed_response: Value = serde_json::from_str(&data.response)
+            .unwrap_or_else(|_| {
+                Value::String(data.response) 
+            });
+
+        ApiDataResponse {
+            id: data.id,
+            fetch_id: data.fetch_id,
+            name: data.name,
+            status_code: data.status_code,
+            response: parsed_response,
+            response_headers: data.response_headers,
+            updated_at: data.updated_at,
+            created_at: data.created_at,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

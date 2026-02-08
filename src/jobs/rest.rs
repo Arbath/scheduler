@@ -65,7 +65,14 @@ pub async fn execute_job(
     }
     let response_headers_json = Value::Object(response_headers_map);
 
-    let res_body = response.text().await?;
+    let res_text = response.text().await?;
+    let res_body = match serde_json::from_str::<Value>(&res_text) {
+        Ok(json) => {
+            Some(serde_json::to_string_pretty(&json)?)
+        }
+        Err(_) => Some(res_text),
+    };
+
 
     // Save data
     let fetch_id = fetch_api.id.clone();
@@ -76,7 +83,7 @@ pub async fn execute_job(
         fetch_id: fetch_api.id,
         name: name_data,
         status_code: Some(status_code),
-        response: Some(res_body),
+        response: res_body,
         response_headers: Some(response_headers_json),
     };
 
@@ -87,8 +94,10 @@ pub async fn execute_job(
     // Create repeatable jobs
     let execute = execute_repo.find_by_id(fetch_api.execute_id).await?;
     if execute.is_repeat {
-        let _ = fetch_service.create_apalis_job(&fetch_api, execute)
+        let job_id = fetch_service.create_apalis_job(&fetch_api, execute)
             .await.map_err(|e| anyhow::anyhow!("Failed to create repeatable jobs: {:?}", e))?;
+        let _ = fetch_repo.update_job_id(fetch_api.id, job_id)
+            .await.map_err(|e| anyhow::anyhow!("Failed to update job id: {:?}", e))?;
     }
 
     Ok(())

@@ -2,7 +2,7 @@ use apalis::prelude::Storage;
 use axum::{extract::{FromRef, FromRequestParts}, http::request::Parts};
 use chrono::{Utc, Duration};
 use tracing::{warn,info};
-use crate::{models::{fetch::{Api, ApiData, ApiExecute, ApiHeader, ApiMembers, CreateApiData, CreateApiExecute, CreateApiHeader, CreateApiMembers, ExecuteType, ReqCreateApi, ReqCreateApiData, ReqCreateApiExecute, ReqCreateApiHeader, Role, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers}, user::User}, repository::fetch::{FetchDataRepository, FetchExecuteRepository, FetchHeaderRepository, FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
+use crate::{models::{fetch::{Api, ApiData, ApiDataResponse, ApiExecute, ApiHeader, ApiMembers, CreateApiData, CreateApiExecute, CreateApiHeader, CreateApiMembers, ExecuteType, ReqCreateApi, ReqCreateApiData, ReqCreateApiExecute, ReqCreateApiHeader, Role, UpdateApi, UpdateApiData, UpdateApiExecute, UpdateApiHeader, UpdateApiMembers}, user::User}, repository::fetch::{FetchDataRepository, FetchExecuteRepository, FetchHeaderRepository, FetchMemberRepository, FetchRepository}, state::AppState, utils::response::AppError};
 
 #[allow(dead_code)]
 pub struct FetchService {
@@ -126,6 +126,9 @@ impl FetchService {
             .await?;
 
         let execute = self.execute_repo.find_by_id(fetch.execute_id).await?;
+        if execute.user_id != user.id && !user.is_superuser {
+            return Err(AppError::Forbidden("You do not have permission to use this execute.".to_string()));
+        }
         let job_id = self.create_apalis_job(&fetch, execute).await?;
         let updated_fetch = self.fetch_repo.update_job_id(fetch.id, job_id).await?;
 
@@ -142,6 +145,22 @@ impl FetchService {
             if member.role == Some(Role::Viewer) {
                 return Err(AppError::Forbidden("Viewer not allowed to update fetch api.".to_string()));
             }
+        }
+
+        if let Some(exe_id) = data.execute_id {
+            let execute = self.execute_repo.find_by_id(exe_id).await?;
+            if execute.user_id != user.id && !user.is_superuser {
+                return Err(AppError::Forbidden("You do not have permission to use this execute.".to_string()));
+            }
+            
+            let fetch = self.fetch_repo.get_by_id(id).await?;
+            if let Some(j_id) = &fetch.job_id {
+                if let Err(e) = self.fetch_repo.delete_apalis_job(j_id).await {
+                    warn!("Failed delete apalis job {}, continue to next step\n error: {}", j_id, e);
+                }
+            }
+            let job_id = self.create_apalis_job(&fetch, execute).await?;
+            self.fetch_repo.update_job_id(*id, job_id).await?;
         }
 
         let query = self.fetch_repo.update(id, data)
@@ -164,17 +183,8 @@ impl FetchService {
                 }
                 AppError::BadRequest(format!("Database: {}", e))
             })?;
-        
-        if let Some(j_id) = &query.job_id {
-            if let Err(e) = self.fetch_repo.delete_apalis_job(j_id).await {
-                warn!("Failed delete apalis job {}, continue to next step\n error: {}", j_id, e);
-            }
-        }
-        let execute = self.execute_repo.find_by_id(query.execute_id).await?;
-        let job_id = self.create_apalis_job(&query, execute).await?;
-        let updated_fetch = self.fetch_repo.update_job_id(query.id, job_id).await?;
 
-        Ok(updated_fetch)
+        Ok(query)
     }
     
     /// delete fetch api
@@ -413,7 +423,7 @@ impl FetchService {
     /// #Fetch Data Area
     
     /// get one
-    pub async fn get_data(&self, user: User, fetch_id: i32, id: i32) -> Result<ApiData, AppError> {
+    pub async fn get_data(&self, user: User, fetch_id: i32, id: i32) -> Result<ApiDataResponse, AppError> {
         if !user.is_superuser {
             self.member_repo.find_member_id(fetch_id, user.id)
             .await.map_err(|_|{AppError::Forbidden(format!("You don't have permission to access this data"))})?;
@@ -421,19 +431,22 @@ impl FetchService {
 
         let data = self.data_repo.find_by_id(id).await?;
 
-        Ok(data)
+        Ok(ApiDataResponse::from(data))
     }
 
     /// get all fetch data related with fetch
-    pub async fn get_all_data(&self, user: User, fetch_id: i32) -> Result<Vec<ApiData>, AppError> {
+    pub async fn get_all_data(&self, user: User, fetch_id: i32) -> Result<Vec<ApiDataResponse>, AppError> {
         if !user.is_superuser {
              self.member_repo.find_member_id(fetch_id, user.id)
             .await.map_err(|_|{AppError::Forbidden(format!("You don't have permission to access this data"))})?;
         }
 
-        let q = self.data_repo.find_all(fetch_id).await?;
+        let data_list = self.data_repo.find_all(fetch_id).await?;
+        let response_list: Vec<ApiDataResponse> = data_list.into_iter()
+            .map(ApiDataResponse::from)
+            .collect();
 
-        Ok(q)
+        Ok(response_list)
     }
 
     /// Create fetch data user
