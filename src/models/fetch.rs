@@ -10,8 +10,8 @@ use chrono::{DateTime,Utc};
 pub enum ApiType {
     Rest,
     Websocket,
-    Mqtt,
-    Graphql,
+    // Mqtt,
+    // Graphql,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "fetch_api_method", rename_all = "lowercase")]
@@ -317,4 +317,11 @@ pub struct UpdateApiData {
     pub status_code: Option<i16>,
     pub response: Option<String>,
     pub response_headers: Value,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FetchResult {
+    pub status_code: i16,
+    pub headers: Value,
+    pub response: String,
 }

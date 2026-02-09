@@ -12,6 +12,7 @@ pub struct Config {
     pub migrate: bool,
     pub log_level: Level,
     pub min_job_interval: u64,
+    pub ws_timeout: u64,
     pub root_username: String,
     pub root_email: String,
     pub root_password: String,
@@ -32,6 +33,7 @@ impl Config {
         let migrate = env::var("MIGRATIONS").unwrap_or("false".to_string()).to_lowercase().parse::<bool>().unwrap_or(false);
         let log_level_str = env::var("LOG_LEVEL").unwrap_or_else(|_| "INFO".to_string()).to_uppercase();
         let min_job_interval = env::var("MIN_JOB_INTERVAL").ok().and_then(|v| v.parse::<u64>().ok()).map(|v| v.max(1)).unwrap_or(10);
+        let ws_timeout = env::var("WS_TIMEOUT").ok().and_then(|v| v.parse::<u64>().ok()).map(|v| v.max(1)).unwrap_or(10);
         let root_username = env::var("ROOT_USERNAME").expect("ROOT_USERNAME required");
         let root_email = env::var("ROOT_EMAIL").expect("ROOT_EMAIL required");
         let root_password = env::var("ROOT_PASSWORD").expect("ROOT_PASSWORD required");
@@ -54,6 +56,7 @@ impl Config {
             migrate,
             log_level,
             min_job_interval,
+            ws_timeout,
             root_username,
             root_email,
             root_password,
