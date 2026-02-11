@@ -16,15 +16,15 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl 
-            binary_name: teknohole-scheduler
-            asset_name: teknohole-scheduler-linux-amd64
-            use_cross: true
+            target: x86_64-unknown-linux-gnu
+            binary_name: teknohole-scheduler-${{ github.ref_name }}
+            asset_name: teknohole-scheduler-linux-amd64-${{ github.ref_name }}
+            use_cross: false
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary_name: teknohole-scheduler.exe
-            asset_name: teknohole-scheduler-windows-amd64.exe
+            binary_name: teknohole-scheduler-${{ github.ref_name }}.exe
+            asset_name: teknohole-scheduler-windows-amd64-${{ github.ref_name }}.exe
             use_cross: false
 
     steps:
@@ -41,37 +41,21 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Install Cross
-        if: matrix.use_cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
-        
       - name: Build Binary
-        shell: bash
-        run: |
-          if [[ "${{ matrix.use_cross }}" == "true" ]]; then
-            cross build --release --locked --target ${{ matrix.target }}
-          else
-            cargo build --release --locked --target ${{ matrix.target }}
-          fi
+        run: cargo build --release --locked --target ${{ matrix.target }}
 
-      - name: Prepare Binary
-        shell: bash
-        run: |
-          BIN_PATH="target/${{ matrix.target }}/release/${{ matrix.binary_name }}"
-          ASSET_PATH="target/${{ matrix.target }}/release/${{ matrix.asset_name }}"
-          
-          if [[ "${{ matrix.target }}" == *"linux"* ]]; then
-            strip "$BIN_PATH"
-          fi
+      - name: Rename Binary (Linux)
+        if: runner.os == 'Linux'
+        run: mv target/${{ matrix.target }}/release/${{ matrix.binary_name }} target/${{ matrix.target }}/release/${{ matrix.asset_name }}
 
-          mv "$BIN_PATH" "$ASSET_PATH"
+      - name: Rename Binary (Windows)
+        if: runner.os == 'Windows'
+        run: Move-Item target/${{ matrix.target }}/release/${{ matrix.binary_name }} target/${{ matrix.target }}/release/${{ matrix.asset_name }}
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
         with:
           files: target/${{ matrix.target }}/release/${{ matrix.asset_name }}
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
