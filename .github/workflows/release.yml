@@ -19,7 +19,7 @@ jobs:
             target: x86_64-unknown-linux-musl 
             binary_name: teknohole-scheduler
             asset_name: teknohole-scheduler-linux-amd64
-            use_cross: false
+            use_cross: true
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -31,12 +31,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Musl Tools (Linux Only)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -47,8 +41,18 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
+      - name: Install Cross
+        if: matrix.use_cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+        
       - name: Build Binary
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        shell: bash
+        run: |
+          if [[ "${{ matrix.use_cross }}" == "true" ]]; then
+            cross build --release --locked --target ${{ matrix.target }}
+          else
+            cargo build --release --locked --target ${{ matrix.target }}
+          fi
 
       - name: Prepare Binary
         shell: bash
