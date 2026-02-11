@@ -20,10 +20,11 @@ pub struct Config {
 
 impl Config {
     pub fn init() -> Config {
-        let port = env::var("APP_PORT")
-            .unwrap_or_else(|_| "8000".to_string())
+        let port_str = env::var("APP_PORT").unwrap_or_else(|_| "8000".to_string());
+        let port = port_str
+            .trim()
             .parse::<u16>()
-            .expect("Invalid APP_PORT");
+            .expect(&format!("Invalid APP_PORT: '{}'", port_str));
 
         let jwt_secret = env::var("JWT_SECRET").expect("JWT_SECRET required");
         let access_ttl = env::var("ACCESS_TTL_IN_MINUTES").ok().and_then(|v| v.parse::<u32>().map(|v| v.max(1)).ok()).unwrap_or(15) * 60;
