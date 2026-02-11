@@ -17,13 +17,13 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            binary_name: teknohole-scheduler-${{ github.ref_name }}
+            binary_name: teknohole-scheduler
             asset_name: teknohole-scheduler-linux-amd64-${{ github.ref_name }}
             use_cross: false
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary_name: teknohole-scheduler-${{ github.ref_name }}.exe
+            binary_name: teknohole-scheduler.exe
             asset_name: teknohole-scheduler-windows-amd64-${{ github.ref_name }}.exe
             use_cross: false
 
